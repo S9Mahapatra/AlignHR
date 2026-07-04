@@ -114,7 +114,7 @@ export default function AdminDashboardPage() {
     .slice(0, 4)
     .map(item => {
       const isLeave = 'leaveType' in item;
-      const userName = item.user?.name || item.employee?.firstName || 'Unknown';
+      const userName = item.user?.name || item.employee?.name || item.employee?.firstName || 'Unknown';
       return {
         id: item.id,
         title: isLeave ? `Leave Request ${item.status}` : `Attendance ${item.status}`,
@@ -276,13 +276,13 @@ export default function AdminDashboardPage() {
                   <Avatar className="h-10 w-10 border border-white/10">
                     <AvatarImage src={leave.employee?.avatar || undefined} />
                     <AvatarFallback className="bg-indigo-600/30 text-indigo-300 font-bold">
-                      {leave.employee ? getInitials(leave.employee.firstName, leave.employee.lastName) : 'EMP'}
+                      {leave.employee ? getInitials(leave.employee.name || leave.employee.firstName, leave.employee.lastName) : 'EMP'}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-white">
-                        {leave.employee ? `${leave.employee.firstName} ${leave.employee.lastName}` : 'Employee'}
+                        {leave.employee ? (leave.employee.name || `${leave.employee.firstName} ${leave.employee.lastName}`) : 'Employee'}
                       </span>
                       <StatusBadge status={leave.leaveType} />
                     </div>
@@ -410,11 +410,11 @@ export default function AdminDashboardPage() {
                         <Avatar className="h-8 w-8 border border-white/10">
                           <AvatarImage src={emp.avatar || undefined} />
                           <AvatarFallback className="bg-indigo-600/30 text-indigo-300 text-xs">
-                            {getInitials(emp.firstName, emp.lastName)}
+                            {getInitials(emp.name || emp.firstName, emp.lastName)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-semibold text-white">{emp.firstName} {emp.lastName}</div>
+                          <div className="font-semibold text-white">{emp.name || `${emp.firstName} ${emp.lastName}`}</div>
                           <div className="text-xs text-slate-400">{emp.designation}</div>
                         </div>
                       </div>

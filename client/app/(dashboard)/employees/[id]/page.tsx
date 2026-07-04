@@ -132,7 +132,7 @@ export default function EmployeeDetailPage({
     );
   }
 
-  const fullName = `${employee.firstName} ${employee.lastName}`;
+  const fullName = employee.name || `${employee.firstName} ${employee.lastName}`;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

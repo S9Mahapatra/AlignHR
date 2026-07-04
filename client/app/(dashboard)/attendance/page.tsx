@@ -300,12 +300,12 @@ export default function AttendancePage() {
                         <Avatar className="h-8 w-8 border border-white/10">
                           <AvatarImage src={rec.employee?.avatar || undefined} />
                           <AvatarFallback className="bg-emerald-600/30 text-emerald-300 text-xs font-bold">
-                            {rec.employee ? getInitials(rec.employee.firstName, rec.employee.lastName) : 'EMP'}
+                            {rec.employee ? getInitials(rec.employee.name || rec.employee.firstName, rec.employee.lastName) : 'EMP'}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="font-semibold text-white">
-                            {rec.employee ? `${rec.employee.firstName} ${rec.employee.lastName}` : 'Employee'}
+                            {rec.employee ? (rec.employee.name || `${rec.employee.firstName} ${rec.employee.lastName}`) : 'Employee'}
                           </div>
                           <div className="text-xs text-slate-400">{rec.employee?.department?.name || 'Engineering'}</div>
                         </div>

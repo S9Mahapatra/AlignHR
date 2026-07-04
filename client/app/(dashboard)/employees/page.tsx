@@ -78,6 +78,7 @@ export default function EmployeesPage() {
       const q = search.toLowerCase();
       result = result.filter(
         (e) =>
+          e.name?.toLowerCase().includes(q) ||
           e.firstName?.toLowerCase().includes(q) ||
           e.lastName?.toLowerCase().includes(q) ||
           e.email?.toLowerCase().includes(q) ||

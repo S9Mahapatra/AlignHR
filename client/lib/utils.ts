@@ -49,10 +49,13 @@ export function formatCurrency(amount: number): string {
  *   getInitials("Rajesh Sharma") → "RS"
  *   getInitials("Sushruta", "Mahapatra") → "SM"
  */
-export function getInitials(firstName: string, lastName?: string): string {
+export function getInitials(firstName?: string, lastName?: string): string {
+  if (!firstName) return '??';
+  
   if (lastName) {
     return `${firstName[0]}${lastName[0]}`.toUpperCase();
   }
+  
   const parts = firstName.trim().split(/\s+/);
   if (parts.length >= 2) {
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();

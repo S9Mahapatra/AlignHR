@@ -57,7 +57,7 @@ export default function EmployeeDashboardPage() {
           <Avatar className="h-16 w-16 border-2 border-indigo-500/40 shadow-lg">
             <AvatarImage src={employee.avatar || undefined} />
             <AvatarFallback className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold text-xl">
-              {getInitials(employee.firstName, employee.lastName)}
+              {getInitials(employee.name || employee.firstName, employee.lastName)}
             </AvatarFallback>
           </Avatar>
           <div className="space-y-1">
@@ -66,7 +66,7 @@ export default function EmployeeDashboardPage() {
               {employee.designation || 'Staff Member'}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Welcome back, {employee.firstName}! 👋
+              Welcome back, {employee.name ? employee.name.split(' ')[0] : employee.firstName}! 👋
             </h1>
             <p className="text-sm text-slate-400">
               Department: <span className="text-slate-200 font-medium">{employee.department?.name || 'Engineering'}</span> • Employee ID: <span className="font-mono text-indigo-400">{employee.employeeCode}</span>

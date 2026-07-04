@@ -144,9 +144,9 @@ export default function LeavePage() {
       await apiPatch(endpoint, { adminComment: comment }, token);
       
       if (actionType === 'APPROVE') {
-        toast.success(`Approved time off for ${selectedLeave.employee?.firstName}! ${comment ? 'Comment added.' : ''}`);
+        toast.success(`Approved time off for ${selectedLeave.employee?.name || selectedLeave.employee?.firstName}! ${comment ? 'Comment added.' : ''}`);
       } else {
-        toast.error(`Rejected time off for ${selectedLeave.employee?.firstName}. Reason logged.`);
+        toast.error(`Rejected time off for ${selectedLeave.employee?.name || selectedLeave.employee?.firstName}. Reason logged.`);
       }
       fetchLeaves();
     } catch (error: any) {
@@ -161,8 +161,9 @@ export default function LeavePage() {
     const matchesRole = isAdminOrHR ? true : (l.employeeId === currentEmp?.id);
     const matchesStatus = filterStatus === 'ALL' ? true : l.status === filterStatus;
     const matchesSearch = !searchQuery || 
-      l.employee?.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.employee?.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.employee?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.employee?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.employee?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       l.reason?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesRole && matchesStatus && matchesSearch;
   });
@@ -288,12 +289,12 @@ export default function LeavePage() {
                         <Avatar className="h-8 w-8 border border-white/10">
                           <AvatarImage src={leave.employee?.avatar || undefined} />
                           <AvatarFallback className="bg-indigo-600/30 text-indigo-300 text-xs font-bold">
-                            {leave.employee ? getInitials(leave.employee.firstName, leave.employee.lastName) : 'EMP'}
+                            {leave.employee ? getInitials(leave.employee.name || leave.employee.firstName, leave.employee.lastName) : 'EMP'}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="font-semibold text-white">
-                            {leave.employee ? `${leave.employee.firstName} ${leave.employee.lastName}` : 'Employee'}
+                            {leave.employee ? (leave.employee.name || `${leave.employee.firstName} ${leave.employee.lastName}`) : 'Employee'}
                           </div>
                           <div className="text-xs text-slate-400">{leave.employee?.designation || 'Staff'}</div>
                         </div>
@@ -346,7 +347,7 @@ export default function LeavePage() {
                         </div>
                       ) : (
                         <span className="text-xs text-slate-500 italic">
-                          Reviewed by {leave.approvedBy ? `${leave.approvedBy.firstName}` : 'HR'}
+                          Reviewed by {leave.approvedBy ? (leave.approvedBy.name || leave.approvedBy.firstName) : 'HR'}
                         </span>
                       )}
                     </td>
@@ -451,7 +452,7 @@ export default function LeavePage() {
             </DialogTitle>
             <DialogDescription className="text-slate-400 text-sm">
               You are about to {actionType?.toLowerCase()} the time-off request for{' '}
-              <strong className="text-white">{selectedLeave?.employee?.firstName} {selectedLeave?.employee?.lastName}</strong> ({selectedLeave?.totalDays} days).
+              <strong className="text-white">{selectedLeave?.employee?.name || `${selectedLeave?.employee?.firstName} ${selectedLeave?.employee?.lastName}`}</strong> ({selectedLeave?.totalDays} days).
             </DialogDescription>
           </DialogHeader>
 

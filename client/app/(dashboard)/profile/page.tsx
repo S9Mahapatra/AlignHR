@@ -96,7 +96,7 @@ export default function ProfilePage() {
               <Avatar className="h-24 w-24 border-4 border-indigo-500/30 shadow-xl">
                 <AvatarImage src={employee.avatar || undefined} />
                 <AvatarFallback className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white text-2xl font-bold">
-                  {getInitials(employee.firstName, employee.lastName)}
+                  {getInitials(employee.name || employee.firstName, employee.lastName)}
                 </AvatarFallback>
               </Avatar>
               <div className="absolute bottom-0 right-0 w-6 h-6 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center text-white" title="Active Account">
@@ -107,7 +107,7 @@ export default function ProfilePage() {
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  {employee.firstName} {employee.lastName}
+                  {employee.name || `${employee.firstName} ${employee.lastName}`}
                 </h1>
                 <StatusBadge status={employee.status} />
                 <StatusBadge status={session?.user?.role || employee.user?.role || 'EMPLOYEE'} />
