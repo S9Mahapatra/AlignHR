@@ -57,18 +57,46 @@ export default function AttendancePage() {
         apiGet<{ success: boolean; data: Department[] }>('/api/departments', token)
       ]);
       
-      const attData = attRes?.data || [];
+      // Transform backend shape (user/userId/remarks) to frontend shape (employee/employeeId/notes)
+      const rawAtt = attRes?.data || [];
+      const attData: Attendance[] = rawAtt.map((r: any) => ({
+        ...r,
+        employeeId: r.employeeId || r.userId,
+        notes: r.notes || r.remarks,
+        employee: r.employee || (r.user ? {
+          id: r.user.id,
+          name: r.user.name,
+          firstName: r.user.name?.split(' ')[0],
+          lastName: r.user.name?.split(' ').slice(1).join(' '),
+          email: r.user.email,
+          employeeCode: r.user.employeeId,
+          department: r.user.profile?.department,
+          designation: r.user.profile?.designation,
+          avatar: r.user.profile?.profileImage,
+        } : undefined),
+      }));
       setRecords(attData);
       setDepartments(deptRes?.data || []);
       
-      const profileRes = await apiGet<{ success: boolean; data: Employee }>('/api/employees/me/profile', token);
+      // Get current employee profile - backend returns User shape, transform to Employee
+      const profileRes = await apiGet<{ success: boolean; data: any }>('/api/employees/me/profile', token);
       if (profileRes.success && profileRes.data) {
-        setCurrentEmp(profileRes.data);
+        const p = profileRes.data;
+        setCurrentEmp({
+          ...p,
+          id: p.id,
+          employeeCode: p.employeeId,
+          firstName: p.name?.split(' ')[0],
+          lastName: p.name?.split(' ').slice(1).join(' '),
+          department: p.profile?.department,
+          designation: p.profile?.designation,
+        } as Employee);
       }
       
       // Determine if currently checked in today
       const todayStr = new Date().toISOString().split('T')[0];
-      const todayRecord = attData.find(r => r.date?.startsWith(todayStr) && r.employeeId === profileRes.data?.id);
+      const myUserId = profileRes.data?.id;
+      const todayRecord = attData.find(r => r.date?.startsWith(todayStr) && (r.employeeId === myUserId || (r as any).userId === myUserId));
       
       if (todayRecord && todayRecord.checkIn && !todayRecord.checkOut) {
         setCheckedIn(true);
@@ -153,7 +181,7 @@ export default function AttendancePage() {
             }`}
           >
             <Clock className="w-4 h-4 mr-2 animate-pulse" />
-            {checkedIn ? 'Clock Out Now' : 'Clock In for Today'}
+            {checkedIn ? 'Clock Out for Today' : 'Clock In for Today'}
           </Button>
           
           {isAdminOrHR && (

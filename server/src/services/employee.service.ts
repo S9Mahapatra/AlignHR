@@ -11,7 +11,11 @@ const userSelectWithoutPassword = {
   role: true,
   createdAt: true,
   updatedAt: true,
-  profile: true,
+  profile: {
+    include: {
+      department: true,
+    },
+  },
 };
 
 /**

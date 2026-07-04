@@ -62,6 +62,19 @@ export const createLeave = async (userId: string, data: CreateLeaveInput) => {
 export const getMyLeaves = async (userId: string) => {
   const leaves = await prisma.leaveRequest.findMany({
     where: { userId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          employeeId: true,
+          email: true,
+          profile: {
+            select: { department: true, designation: true },
+          },
+        },
+      },
+    },
     orderBy: { createdAt: 'desc' },
   });
   return leaves;

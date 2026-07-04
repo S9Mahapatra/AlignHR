@@ -66,19 +66,41 @@ export default function LeavePage() {
     if (!token) return;
     try {
       const endpoint = isAdminOrHR ? '/api/leaves' : '/api/leaves/me';
-      const response = await apiGet<{ success: boolean; data: Leave[] }>(endpoint, token);
-      setLeaves(response?.data || []);
+      const response = await apiGet<{ success: boolean; data: any[] }>(endpoint, token);
+      // Transform backend shape (user/userId/remarks/adminComment) to frontend shape
+      const rawLeaves = response?.data || [];
+      const transformedLeaves: Leave[] = rawLeaves.map((l: any) => ({
+        ...l,
+        employeeId: l.employeeId || l.userId,
+        reason: l.reason || l.remarks,
+        rejectionNote: l.rejectionNote || l.adminComment,
+        employee: l.employee || (l.user ? {
+          id: l.user.id,
+          name: l.user.name,
+          firstName: l.user.name?.split(' ')[0],
+          lastName: l.user.name?.split(' ').slice(1).join(' '),
+          email: l.user.email,
+          employeeCode: l.user.employeeId,
+          department: l.user.profile?.department,
+          designation: l.user.profile?.designation,
+          avatar: l.user.profile?.profileImage,
+        } : undefined),
+      }));
+      setLeaves(transformedLeaves);
       
-      if (!isAdminOrHR) {
-        const empResponse = await apiGet<{ success: boolean; data: Employee }>('/api/employees/me/profile', token);
-        if (empResponse.success && empResponse.data) {
-           setCurrentEmp(empResponse.data);
-        }
-      } else {
-        const myProfile = await apiGet<{ success: boolean; data: Employee }>('/api/employees/me/profile', token);
-        if (myProfile.success && myProfile.data) {
-          setCurrentEmp(myProfile.data);
-        }
+      // Get current employee profile - backend returns User shape, transform to Employee
+      const profileRes = await apiGet<{ success: boolean; data: any }>('/api/employees/me/profile', token);
+      if (profileRes.success && profileRes.data) {
+        const p = profileRes.data;
+        setCurrentEmp({
+          ...p,
+          id: p.id,
+          employeeCode: p.employeeId,
+          firstName: p.name?.split(' ')[0],
+          lastName: p.name?.split(' ').slice(1).join(' '),
+          department: p.profile?.department,
+          designation: p.profile?.designation,
+        } as Employee);
       }
     } catch (error) {
       toast.error('Failed to load leave records.');
@@ -158,7 +180,7 @@ export default function LeavePage() {
   };
 
   const displayedLeaves = leaves.filter(l => {
-    const matchesRole = isAdminOrHR ? true : (l.employeeId === currentEmp?.id);
+    const matchesRole = isAdminOrHR ? true : (l.employeeId === currentEmp?.id || (l as any).userId === currentEmp?.id);
     const matchesStatus = filterStatus === 'ALL' ? true : l.status === filterStatus;
     const matchesSearch = !searchQuery || 
       l.employee?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||

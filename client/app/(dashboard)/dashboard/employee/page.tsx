@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { getInitials, formatCurrency } from '@/lib/utils';
-import { MOCK_EMPLOYEES, MOCK_LEAVES, MOCK_PAYROLLS, MOCK_ACTIVITIES } from '@/lib/mock-data';
+import { apiGet, apiPost } from '@/lib/api';
 import { toast } from 'sonner';
 import {
   Clock,
@@ -23,29 +23,114 @@ import {
   User,
   Activity,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
 
 export default function EmployeeDashboardPage() {
   const { data: session } = useSession();
+  const token = session?.user?.accessToken;
+
+  const [profile, setProfile] = useState<any>(null);
+  const [myLeaves, setMyLeaves] = useState<any[]>([]);
+  const [latestPayroll, setLatestPayroll] = useState<any>(null);
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [isToggling, setIsToggling] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const employee = MOCK_EMPLOYEES.find(e => e.email === session?.user?.email) || MOCK_EMPLOYEES[2];
-  const myLeaves = MOCK_LEAVES.filter(l => l.employeeId === employee.id || l.employeeId === 'emp-3').slice(0, 3);
-  const latestPayroll = MOCK_PAYROLLS[0];
+  const fetchData = useCallback(async () => {
+    if (!token) return;
+    setIsLoading(true);
+    try {
+      const [profileRes, leavesRes, attendanceRes, payrollRes] = await Promise.all([
+        apiGet<{ success: boolean; data: any }>('/api/employees/me/profile', token),
+        apiGet<{ success: boolean; data: any[] }>('/api/leaves/me', token),
+        apiGet<{ success: boolean; data: any[] }>('/api/attendance/me', token),
+        apiGet<{ success: boolean; data: any[] }>('/api/payroll', token).catch(() => ({ success: false, data: [] })),
+      ]);
 
-  const handleClockToggle = () => {
-    if (!checkedIn) {
-      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setCheckedIn(true);
-      setCheckInTime(now);
-      toast.success(`Clocked in successfully at ${now}! Have a productive workday.`);
-    } else {
-      setCheckedIn(false);
-      toast.success('Clocked out successfully! Your daily work hours have been recorded.');
+      if (profileRes.success && profileRes.data) {
+        setProfile(profileRes.data);
+      }
+
+      // Transform leaves
+      const rawLeaves = leavesRes?.data || [];
+      setMyLeaves(rawLeaves.slice(0, 3).map((l: any) => ({
+        ...l,
+        reason: l.reason || l.remarks,
+        rejectionNote: l.rejectionNote || l.adminComment,
+      })));
+
+      // Check if clocked in today
+      const todayStr = new Date().toISOString().split('T')[0];
+      const attRecords = attendanceRes?.data || [];
+      const todayRecord = attRecords.find((r: any) => r.date?.startsWith(todayStr));
+      if (todayRecord && todayRecord.checkIn && !todayRecord.checkOut) {
+        setCheckedIn(true);
+        setCheckInTime(new Date(todayRecord.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } else if (todayRecord && todayRecord.checkIn && todayRecord.checkOut) {
+        setCheckedIn(false);
+        setCheckInTime(new Date(todayRecord.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } else {
+        setCheckedIn(false);
+        setCheckInTime(null);
+      }
+
+      // Latest payroll
+      if (payrollRes?.data && payrollRes.data.length > 0) {
+        setLatestPayroll(payrollRes.data[0]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleClockToggle = async () => {
+    if (!token || isToggling) return;
+    setIsToggling(true);
+    try {
+      if (!checkedIn) {
+        await apiPost('/api/attendance/check-in', {}, token);
+        const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setCheckedIn(true);
+        setCheckInTime(now);
+        toast.success(`Clocked in successfully at ${now}! Have a productive workday.`);
+      } else {
+        await apiPost('/api/attendance/check-out', {}, token);
+        setCheckedIn(false);
+        toast.success('Clocked out successfully! Your daily work hours have been recorded.');
+      }
+      fetchData(); // Refresh data
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to toggle clock status.');
+    } finally {
+      setIsToggling(false);
     }
   };
+
+  const employeeName = profile?.name || session?.user?.name || 'Employee';
+  const firstName = employeeName.split(' ')[0];
+  const designation = profile?.profile?.designation || 'Staff Member';
+  const departmentName = profile?.profile?.department?.name || 'General';
+  const employeeCode = profile?.employeeId || 'N/A';
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[60vh] w-full items-center justify-center">
+        <div className="flex flex-col items-center gap-3 text-slate-400">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+          <p className="text-sm font-medium">Loading your workday dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -55,21 +140,21 @@ export default function EmployeeDashboardPage() {
         
         <div className="flex items-center gap-5 z-10">
           <Avatar className="h-16 w-16 border-2 border-indigo-500/40 shadow-lg">
-            <AvatarImage src={employee.avatar || undefined} />
+            <AvatarImage src={profile?.profile?.profileImage || undefined} />
             <AvatarFallback className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white font-bold text-xl">
-              {getInitials(employee.name || employee.firstName, employee.lastName)}
+              {getInitials(employeeName)}
             </AvatarFallback>
           </Avatar>
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold">
               <Sparkles className="w-3 h-3" />
-              {employee.designation || 'Staff Member'}
+              {designation}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-              Welcome back, {employee.name ? employee.name.split(' ')[0] : employee.firstName}! 👋
+              Welcome back, {firstName}! 👋
             </h1>
             <p className="text-sm text-slate-400">
-              Department: <span className="text-slate-200 font-medium">{employee.department?.name || 'Engineering'}</span> • Employee ID: <span className="font-mono text-indigo-400">{employee.employeeCode}</span>
+              Department: <span className="text-slate-200 font-medium">{departmentName}</span> • Employee ID: <span className="font-mono text-indigo-400">{employeeCode}</span>
             </p>
           </div>
         </div>
@@ -77,6 +162,7 @@ export default function EmployeeDashboardPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 z-10">
           <Button
             onClick={handleClockToggle}
+            disabled={isToggling}
             size="lg"
             className={`h-12 px-6 font-semibold shadow-lg transition-all ${
               checkedIn
@@ -84,8 +170,12 @@ export default function EmployeeDashboardPage() {
                 : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-emerald-600/20'
             }`}
           >
-            <Clock className="w-4 h-4 mr-2 animate-pulse" />
-            {checkedIn ? 'Clock Out Now' : 'Clock In for Today'}
+            {isToggling ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Clock className="w-4 h-4 mr-2 animate-pulse" />
+            )}
+            {checkedIn ? 'Clock Out for Today' : 'Clock In for Today'}
           </Button>
           <Link href="/leave">
             <Button variant="outline" size="lg" className="h-12 w-full sm:w-auto bg-slate-900/80 border-white/10 hover:bg-white/5 text-slate-200 font-medium">
@@ -112,12 +202,12 @@ export default function EmployeeDashboardPage() {
               {checkedIn ? 'PRESENT' : 'NOT CLOCKED IN'}
             </div>
             <div className="text-xs text-slate-400 flex items-center gap-1.5">
-              <span>Check-in: <strong className="text-slate-200 font-mono">{checkInTime || '08:55 AM'}</strong></span>
+              <span>Check-in: <strong className="text-slate-200 font-mono">{checkInTime || '—'}</strong></span>
             </div>
           </CardContent>
           <CardFooter className="pt-2 border-t border-white/5 bg-slate-950/30 text-xs text-emerald-400 font-medium">
             <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-            On Time Arrival
+            {checkedIn ? 'On Time Arrival' : 'Awaiting Clock In'}
           </CardFooter>
         </Card>
 
@@ -155,14 +245,14 @@ export default function EmployeeDashboardPage() {
           </CardHeader>
           <CardContent className="py-2">
             <div className="text-2xl font-bold text-white mb-1 font-mono">
-              {formatCurrency(latestPayroll.netSalary)}
+              {latestPayroll ? formatCurrency(latestPayroll.netSalary) : '—'}
             </div>
             <div className="text-xs text-slate-400">
-              June 2026 Payslip Processed
+              {latestPayroll ? `${new Date(0, latestPayroll.month - 1).toLocaleString('default', { month: 'long' })} ${latestPayroll.year} Payslip` : 'No payslip available'}
             </div>
           </CardContent>
           <CardFooter className="pt-2 border-t border-white/5 bg-slate-950/30 text-xs text-violet-400 font-medium flex justify-between">
-            <span>Status: PAID</span>
+            <span>Status: {latestPayroll?.status || 'N/A'}</span>
             <Link href="/payroll" className="hover:underline flex items-center">Payslip <ChevronRight className="w-3 h-3" /></Link>
           </CardFooter>
         </Card>

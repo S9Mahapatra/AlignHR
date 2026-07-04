@@ -114,7 +114,7 @@ export default function AdminDashboardPage() {
     .slice(0, 4)
     .map(item => {
       const isLeave = 'leaveType' in item;
-      const userName = item.user?.name || item.employee?.name || item.employee?.firstName || 'Unknown';
+      const userName = item.user?.name || item.employee?.name || item.employee?.firstName || item.user?.profile?.designation || 'Unknown';
       return {
         id: item.id,
         title: isLeave ? `Leave Request ${item.status}` : `Attendance ${item.status}`,

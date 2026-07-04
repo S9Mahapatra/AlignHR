@@ -115,6 +115,19 @@ export const getMyAttendance = async (
 
   const records = await prisma.attendance.findMany({
     where,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          employeeId: true,
+          email: true,
+          profile: {
+            select: { department: true, designation: true },
+          },
+        },
+      },
+    },
     orderBy: { date: 'desc' },
   });
 
