@@ -12,6 +12,7 @@ import {
   Wallet,
   Settings,
   Sparkles,
+  User,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,11 @@ const navSections: NavSection[] = [
         label: "Dashboard",
         href: "/dashboard",
         icon: LayoutDashboard,
+      },
+      {
+        label: "My Profile",
+        href: "/profile",
+        icon: User,
       },
     ],
   },
@@ -67,7 +73,7 @@ const navSections: NavSection[] = [
       },
       {
         label: "Leaves",
-        href: "/leaves",
+        href: "/leave",
         icon: Calendar,
       },
     ],

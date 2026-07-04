@@ -131,7 +131,7 @@ export function Header() {
 
               <DropdownMenuItem asChild>
                 <Link
-                  href="/settings"
+                  href="/profile"
                   className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white focus:text-white focus:bg-white/5"
                 >
                   <User className="w-4 h-4" />
