@@ -12,8 +12,10 @@ router.get('/me/profile', authenticate, employeeController.getMyProfile);
 router.patch('/me/profile', authenticate, validate(updateEmployeeSelfSchema), employeeController.updateMyProfile);
 
 // ─── Admin/HR routes ─────────────────────────────────────────────────────────
+router.post('/', authenticate, requireRole('ADMIN', 'HR'), employeeController.create);
 router.get('/', authenticate, requireRole('ADMIN', 'HR'), employeeController.getAll);
 router.get('/:id', authenticate, requireRole('ADMIN', 'HR'), employeeController.getById);
+router.put('/:id', authenticate, requireRole('ADMIN', 'HR'), employeeController.update);
 router.patch('/:id', authenticate, requireRole('ADMIN', 'HR'), validate(updateEmployeeAdminSchema), employeeController.update);
 router.delete('/:id', authenticate, requireRole('ADMIN'), employeeController.remove);
 

@@ -50,6 +50,20 @@ app.get("/health", (_req, res) => {
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
 
+// Mock departments route (AlignHR uses strings for departments internally)
+app.get('/api/departments', (_req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 'Engineering', name: 'Engineering' },
+      { id: 'Human Resources', name: 'Human Resources' },
+      { id: 'Marketing', name: 'Marketing' },
+      { id: 'Finance', name: 'Finance' },
+      { id: 'Management', name: 'Management' },
+    ],
+  });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);

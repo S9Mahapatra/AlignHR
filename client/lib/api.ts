@@ -27,7 +27,10 @@ async function fetchApi<T = unknown>(
   // We replace localhost with 127.0.0.1 on the server to prevent ECONNREFUSED.
   const baseUrl = typeof window === 'undefined' ? API_BASE.replace('localhost', '127.0.0.1') : API_BASE;
 
-  const res = await fetch(`${baseUrl}${path}`, {
+  // Normalize path if someone accidentally prefixed it with /api/
+  const normalizedPath = path.startsWith('/api/') ? path.substring(4) : path;
+
+  const res = await fetch(`${baseUrl}${normalizedPath}`, {
     ...options,
     headers,
   });
