@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { formatCurrency, getInitials } from '@/lib/utils';
-import { MOCK_EMPLOYEES, MOCK_LEAVES, MOCK_PAYROLLS, MOCK_DEPARTMENTS, MOCK_ACTIVITIES } from '@/lib/mock-data';
+import { apiGet, apiPatch } from '@/lib/api';
 import { toast } from 'sonner';
 import {
   Users,
@@ -24,29 +25,105 @@ import {
   TrendingUp,
   BarChart3,
   Layers,
-  ChevronRight
+  ChevronRight,
+  RefreshCw
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
-  const [leaves, setLeaves] = useState(MOCK_LEAVES);
+  const { data: session } = useSession();
+  const token = session?.user?.accessToken;
+
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [leaves, setLeaves] = useState<any[]>([]);
+  const [payrolls, setPayrolls] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [attendances, setAttendances] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    if (!token) return;
+    setIsLoading(true);
+    try {
+      const [empRes, leaveRes, payrollRes, deptRes, attRes] = await Promise.all([
+        apiGet<{ success: boolean; data: any[] }>('/api/employees', token),
+        apiGet<{ success: boolean; data: any[] }>('/api/leaves', token),
+        apiGet<{ success: boolean; data: any[] }>('/api/payroll', token),
+        apiGet<{ success: boolean; data: any[] }>('/api/departments', token),
+        apiGet<{ success: boolean; data: any[] }>('/api/attendance', token),
+      ]);
+      setEmployees(empRes?.data || []);
+      setLeaves(leaveRes?.data || []);
+      setPayrolls(payrollRes?.data || []);
+      setDepartments(deptRes?.data || []);
+      setAttendances(attRes?.data || []);
+    } catch (error) {
+      toast.error('Failed to fetch dashboard data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const pendingLeaves = leaves.filter(l => l.status === 'PENDING');
   
-  const totalEmployees = MOCK_EMPLOYEES.length;
-  const presentToday = 7;
-  const absentToday = 1;
-  const monthlyPayrollTotal = MOCK_PAYROLLS.reduce((acc, p) => acc + p.netSalary, 0) + 480000;
-  const totalDepartments = MOCK_DEPARTMENTS.length;
-  const newJoiners = 2;
+  const totalEmployees = employees.length;
+  
+  // Calculate attendance for today
+  const today = new Date().toISOString().split('T')[0];
+  const presentToday = attendances.filter(a => a.date?.startsWith(today) && a.status === 'PRESENT').length;
+  const absentToday = attendances.filter(a => a.date?.startsWith(today) && a.status === 'ABSENT').length;
+  
+  const monthlyPayrollTotal = payrolls.reduce((acc, p) => acc + (p.netSalary || 0), 0);
+  const totalDepartments = departments.length;
+  
+  // Calculate new joiners this month
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const newJoiners = employees.filter(e => {
+    if (!e.profile?.joiningDate) return false;
+    const joiningDate = new Date(e.profile.joiningDate);
+    return joiningDate.getMonth() === currentMonth && joiningDate.getFullYear() === currentYear;
+  }).length;
 
-  const handleApprove = (id: string) => {
-    setLeaves(prev => prev.map(l => l.id === id ? { ...l, status: 'APPROVED' as const } : l));
-    toast.success('Leave request approved! The employee has been notified.');
+  const handleApprove = async (id: string) => {
+    try {
+      await apiPatch(`/api/leaves/${id}/approve`, {}, token);
+      setLeaves(prev => prev.map(l => l.id === id ? { ...l, status: 'APPROVED' } : l));
+      toast.success('Leave request approved! The employee has been notified.');
+    } catch (error) {
+      toast.error('Failed to approve leave request.');
+    }
   };
 
-  const handleReject = (id: string) => {
-    setLeaves(prev => prev.map(l => l.id === id ? { ...l, status: 'REJECTED' as const } : l));
-    toast.error('Leave request rejected. Notification sent.');
+  const handleReject = async (id: string) => {
+    try {
+      await apiPatch(`/api/leaves/${id}/reject`, {}, token);
+      setLeaves(prev => prev.map(l => l.id === id ? { ...l, status: 'REJECTED' } : l));
+      toast.error('Leave request rejected. Notification sent.');
+    } catch (error) {
+      toast.error('Failed to reject leave request.');
+    }
   };
+
+  // Generate activities from leaves and attendances
+  const recentActivities = [...leaves, ...attendances]
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
+    .slice(0, 4)
+    .map(item => {
+      const isLeave = 'leaveType' in item;
+      const userName = item.user?.name || item.employee?.firstName || 'Unknown';
+      return {
+        id: item.id,
+        title: isLeave ? `Leave Request ${item.status}` : `Attendance ${item.status}`,
+        description: isLeave 
+          ? `${userName} requested ${item.totalDays} days of ${item.leaveType} leave.` 
+          : `${userName} was marked ${item.status} on ${new Date(item.date).toLocaleDateString()}.`,
+        timestamp: new Date(item.updatedAt || item.createdAt).toLocaleString(),
+      };
+    });
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -66,14 +143,24 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href="/employees/new">
-            <Button className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 font-semibold text-white shadow-lg shadow-indigo-500/20">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchData}
+            disabled={isLoading}
+            className="border-white/10 bg-slate-900/80 hover:bg-white/5 text-slate-300 h-10 px-4"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Link href="/employees">
+            <Button className="bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 font-semibold text-white shadow-lg shadow-indigo-500/20 h-10">
               <UserPlus className="w-4 h-4 mr-2" />
               Onboard Employee
             </Button>
           </Link>
           <Link href="/payroll">
-            <Button variant="outline" className="border-white/10 bg-slate-900/80 hover:bg-white/5 text-slate-200 font-medium">
+            <Button variant="outline" className="border-white/10 bg-slate-900/80 hover:bg-white/5 text-slate-200 font-medium h-10">
               Run Payroll
             </Button>
           </Link>
@@ -254,9 +341,9 @@ export default function AdminDashboardPage() {
           </CardHeader>
 
           <CardContent className="space-y-5">
-            {MOCK_DEPARTMENTS.map((dept) => {
-              const count = dept._count?.employees || 1;
-              const pct = Math.round((count / totalEmployees) * 100);
+            {departments.map((dept) => {
+              const count = dept.employees?.length || dept._count?.employees || 0;
+              const pct = totalEmployees > 0 ? Math.round((count / totalEmployees) * 100) : 0;
               return (
                 <div key={dept.id} className="space-y-1.5">
                   <div className="flex justify-between text-sm">
@@ -316,7 +403,7 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {MOCK_EMPLOYEES.slice(0, 5).map((emp) => (
+                {employees.slice(0, 5).map((emp) => (
                   <tr key={emp.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-6">
                       <div className="flex items-center gap-3">
@@ -357,7 +444,7 @@ export default function AdminDashboardPage() {
             <CardDescription className="text-slate-400">Real-time audit log of system events</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {MOCK_ACTIVITIES.slice(0, 4).map((act) => (
+            {recentActivities.length > 0 ? recentActivities.map((act) => (
               <div key={act.id} className="flex items-start gap-3 pb-3 border-b border-white/5 last:border-0 last:pb-0">
                 <div className="w-2 h-2 rounded-full bg-indigo-500 mt-2 shrink-0" />
                 <div className="space-y-0.5">
@@ -366,7 +453,9 @@ export default function AdminDashboardPage() {
                   <div className="text-[10px] text-slate-500 font-mono">{act.timestamp}</div>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="text-xs text-slate-500 text-center py-4">No recent activities.</div>
+            )}
           </CardContent>
           <CardFooter className="pt-3 border-t border-white/5 bg-slate-950/30 text-xs text-slate-500 justify-center">
             Log retention: 90 Days Enterprise Policy

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { getInitials } from '@/lib/utils';
-import { MOCK_ATTENDANCE, MOCK_EMPLOYEES, MOCK_DEPARTMENTS } from '@/lib/mock-data';
+import { apiGet, apiPost } from '@/lib/api';
 import { toast } from 'sonner';
 import {
   Clock,
@@ -22,62 +22,93 @@ import {
   UserX,
   Sparkles,
   ArrowRight,
-  TrendingUp
+  TrendingUp,
+  Loader2,
+  RefreshCw
 } from 'lucide-react';
-import { Attendance } from '@/types';
+import { Attendance, Employee, Department } from '@/types';
 
 export default function AttendancePage() {
   const { data: session } = useSession();
+  const token = session?.user?.accessToken;
   const isAdminOrHR = session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
-  const currentEmp = MOCK_EMPLOYEES.find(e => e.email === session?.user?.email) || MOCK_EMPLOYEES[2];
-
-  const [records, setRecords] = useState<Attendance[]>(MOCK_ATTENDANCE);
+  
+  const [currentEmp, setCurrentEmp] = useState<Employee | null>(null);
+  const [records, setRecords] = useState<Attendance[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const [checkedIn, setCheckedIn] = useState(false);
   const [checkInTime, setCheckInTime] = useState<string | null>(null);
+  const [isToggling, setIsToggling] = useState(false);
   
   // Filter states
   const [deptFilter, setDeptFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [dateFilter, setDateFilter] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  const handleToggleClock = () => {
-    const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    if (!checkedIn) {
-      setCheckedIn(true);
-      setCheckInTime(nowStr);
+  const fetchData = useCallback(async () => {
+    if (!token) return;
+    setIsLoading(true);
+    try {
+      const endpoint = isAdminOrHR ? '/api/attendance' : '/api/attendance/me';
+      const [attRes, deptRes] = await Promise.all([
+        apiGet<{ success: boolean; data: Attendance[] }>(endpoint, token),
+        apiGet<{ success: boolean; data: Department[] }>('/api/departments', token)
+      ]);
       
-      const newRec: Attendance = {
-        id: `att-${Date.now()}`,
-        employeeId: currentEmp.id,
-        employee: currentEmp,
-        date: todayStr,
-        checkIn: `${todayStr}T08:55:00Z`,
-        checkOut: undefined,
-        status: 'PRESENT',
-        workHours: 0,
-        notes: 'Clocked in from SaaS Web Portal',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      const attData = attRes?.data || [];
+      setRecords(attData);
+      setDepartments(deptRes?.data || []);
+      
+      const profileRes = await apiGet<{ success: boolean; data: Employee }>('/api/employees/me/profile', token);
+      if (profileRes.success && profileRes.data) {
+        setCurrentEmp(profileRes.data);
+      }
+      
+      // Determine if currently checked in today
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayRecord = attData.find(r => r.date?.startsWith(todayStr) && r.employeeId === profileRes.data?.id);
+      
+      if (todayRecord && todayRecord.checkIn && !todayRecord.checkOut) {
+        setCheckedIn(true);
+        setCheckInTime(new Date(todayRecord.checkIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      } else {
+        setCheckedIn(false);
+        setCheckInTime(null);
+      }
+    } catch (error) {
+      toast.error('Failed to fetch attendance data.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [token, isAdminOrHR]);
 
-      setRecords(prev => [newRec, ...prev]);
-      toast.success(`Clocked in at ${nowStr}! Have a great shift.`);
-    } else {
-      setCheckedIn(false);
-      setRecords(prev => prev.map(r => {
-        if (r.employeeId === currentEmp.id && r.date === todayStr) {
-          return {
-            ...r,
-            checkOut: `${todayStr}T17:45:00Z`,
-            workHours: 8.8,
-            notes: 'Completed standard full day shift',
-          };
-        }
-        return r;
-      }));
-      toast.success('Clocked out successfully! Work hours logged.');
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleToggleClock = async () => {
+    if (!token || isToggling) return;
+    setIsToggling(true);
+    try {
+      if (!checkedIn) {
+        await apiPost('/api/attendance/check-in', {}, token);
+        const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setCheckedIn(true);
+        setCheckInTime(nowStr);
+        toast.success(`Clocked in at ${nowStr}! Have a great shift.`);
+      } else {
+        await apiPost('/api/attendance/check-out', {}, token);
+        setCheckedIn(false);
+        setCheckInTime(null);
+        toast.success('Clocked out successfully! Work hours logged.');
+      }
+      fetchData(); // Refresh records
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to toggle clock status.');
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -86,7 +117,7 @@ export default function AttendancePage() {
   };
 
   const displayedRecords = records.filter(r => {
-    const matchesRole = isAdminOrHR ? true : r.employeeId === currentEmp.id;
+    const matchesRole = isAdminOrHR ? true : r.employeeId === currentEmp?.id;
     const matchesDept = deptFilter === 'ALL' ? true : r.employee?.department?.name === deptFilter;
     const matchesStatus = statusFilter === 'ALL' ? true : r.status === statusFilter;
     return matchesRole && matchesDept && matchesStatus;
@@ -226,7 +257,7 @@ export default function AttendancePage() {
               className="bg-slate-950 border border-white/10 text-slate-200 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-indigo-500"
             >
               <option value="ALL">All Departments</option>
-              {MOCK_DEPARTMENTS.map((d) => (
+              {departments.map((d) => (
                 <option key={d.id} value={d.name}>{d.name}</option>
               ))}
             </select>

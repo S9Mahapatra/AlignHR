@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +22,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { getInitials } from '@/lib/utils';
-import { MOCK_LEAVES, MOCK_EMPLOYEES } from '@/lib/mock-data';
+import { apiGet, apiPost, apiPatch } from '@/lib/api';
 import { leaveFormSchema } from '@/lib/validations';
 import { LEAVE_TYPES } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -39,16 +39,17 @@ import {
   MessageSquare,
   ChevronRight
 } from 'lucide-react';
-import { Leave } from '@/types';
+import { Leave, Employee } from '@/types';
 
 type LeaveFormValues = z.infer<typeof leaveFormSchema>;
 
 export default function LeavePage() {
   const { data: session } = useSession();
+  const token = session?.user?.accessToken;
   const isAdminOrHR = session?.user?.role === 'ADMIN' || session?.user?.role === 'HR';
-  const currentEmp = MOCK_EMPLOYEES.find(e => e.email === session?.user?.email) || MOCK_EMPLOYEES[2];
 
-  const [leaves, setLeaves] = useState<Leave[]>(MOCK_LEAVES);
+  const [leaves, setLeaves] = useState<Leave[]>([]);
+  const [currentEmp, setCurrentEmp] = useState<Employee | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -61,6 +62,33 @@ export default function LeavePage() {
   const [actionType, setActionType] = useState<'APPROVE' | 'REJECT' | null>(null);
   const [comment, setComment] = useState('');
 
+  const fetchLeaves = useCallback(async () => {
+    if (!token) return;
+    try {
+      const endpoint = isAdminOrHR ? '/api/leaves' : '/api/leaves/me';
+      const response = await apiGet<{ success: boolean; data: Leave[] }>(endpoint, token);
+      setLeaves(response?.data || []);
+      
+      if (!isAdminOrHR) {
+        const empResponse = await apiGet<{ success: boolean; data: Employee }>('/api/employees/me/profile', token);
+        if (empResponse.success && empResponse.data) {
+           setCurrentEmp(empResponse.data);
+        }
+      } else {
+        const myProfile = await apiGet<{ success: boolean; data: Employee }>('/api/employees/me/profile', token);
+        if (myProfile.success && myProfile.data) {
+          setCurrentEmp(myProfile.data);
+        }
+      }
+    } catch (error) {
+      toast.error('Failed to load leave records.');
+    }
+  }, [token, isAdminOrHR]);
+
+  useEffect(() => {
+    fetchLeaves();
+  }, [fetchLeaves]);
+
   const form = useForm<LeaveFormValues>({
     resolver: zodResolver(leaveFormSchema),
     defaultValues: {
@@ -72,34 +100,28 @@ export default function LeavePage() {
   });
 
   const onApplySubmit = async (values: LeaveFormValues) => {
+    if (!token) return;
     try {
       setSubmitting(true);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
       const start = new Date(values.startDate);
       const end = new Date(values.endDate);
       const days = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1);
-
-      const newLeave: Leave = {
-        id: `lev-${Date.now()}`,
-        employeeId: currentEmp.id,
-        employee: currentEmp,
+      
+      const payload = {
         leaveType: values.leaveType,
-        startDate: values.startDate,
-        endDate: values.endDate,
+        startDate: new Date(values.startDate).toISOString(),
+        endDate: new Date(values.endDate).toISOString(),
         totalDays: days,
-        reason: values.reason,
-        status: 'PENDING',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        remarks: values.reason,
       };
 
-      setLeaves(prev => [newLeave, ...prev]);
+      await apiPost('/api/leaves', payload, token);
       toast.success(`Leave request submitted for ${days} day(s). Awaiting HR approval.`);
       form.reset();
       setApplyOpen(false);
-    } catch (error) {
-      toast.error('Failed to submit leave application.');
+      fetchLeaves();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to submit leave application.');
     } finally {
       setSubmitting(false);
     }
@@ -111,36 +133,32 @@ export default function LeavePage() {
     setComment('');
   };
 
-  const handleConfirmAction = () => {
-    if (!selectedLeave || !actionType) return;
+  const handleConfirmAction = async () => {
+    if (!selectedLeave || !actionType || !token) return;
 
-    const newStatus = actionType === 'APPROVE' ? 'APPROVED' : 'REJECTED';
-    setLeaves(prev => prev.map(l => {
-      if (l.id === selectedLeave.id) {
-        return {
-          ...l,
-          status: newStatus,
-          rejectionNote: actionType === 'REJECT' ? comment : undefined,
-          approvedById: currentEmp.id,
-          approvedBy: currentEmp,
-          approvedAt: new Date().toISOString(),
-        };
+    try {
+      const endpoint = actionType === 'APPROVE' 
+        ? `/api/leaves/${selectedLeave.id}/approve` 
+        : `/api/leaves/${selectedLeave.id}/reject`;
+        
+      await apiPatch(endpoint, { adminComment: comment }, token);
+      
+      if (actionType === 'APPROVE') {
+        toast.success(`Approved time off for ${selectedLeave.employee?.firstName}! ${comment ? 'Comment added.' : ''}`);
+      } else {
+        toast.error(`Rejected time off for ${selectedLeave.employee?.firstName}. Reason logged.`);
       }
-      return l;
-    }));
-
-    if (actionType === 'APPROVE') {
-      toast.success(`Approved time off for ${selectedLeave.employee?.firstName}! ${comment ? 'Comment added.' : ''}`);
-    } else {
-      toast.error(`Rejected time off for ${selectedLeave.employee?.firstName}. Reason logged.`);
+      fetchLeaves();
+    } catch (error: any) {
+      toast.error(error.message || 'Action failed.');
+    } finally {
+      setSelectedLeave(null);
+      setActionType(null);
     }
-
-    setSelectedLeave(null);
-    setActionType(null);
   };
 
   const displayedLeaves = leaves.filter(l => {
-    const matchesRole = isAdminOrHR ? true : (l.employeeId === currentEmp.id || l.employeeId === 'emp-3');
+    const matchesRole = isAdminOrHR ? true : (l.employeeId === currentEmp?.id);
     const matchesStatus = filterStatus === 'ALL' ? true : l.status === filterStatus;
     const matchesSearch = !searchQuery || 
       l.employee?.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||

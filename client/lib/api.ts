@@ -72,3 +72,9 @@ export const apiPut = <T = unknown>(path: string, body?: unknown, token?: string
  */
 export const apiDelete = <T = unknown>(path: string, token?: string): Promise<T> =>
   fetchApi<T>(path, { method: 'DELETE' }, token);
+
+/**
+ * Performs a PATCH request with an optional JSON body.
+ */
+export const apiPatch = <T = unknown>(path: string, body?: unknown, token?: string): Promise<T> =>
+  fetchApi<T>(path, { method: 'PATCH', body: JSON.stringify(body) }, token);
