@@ -71,16 +71,16 @@ export default function EmployeeDetailPage({
     setIsLoading(true);
     try {
       const [empRes, attRes, leaveRes, payRes] = await Promise.allSettled([
-        apiGet(`/api/employees/${id}`, token),
-        apiGet(`/api/employees/${id}/attendance`, token),
-        apiGet(`/api/employees/${id}/leaves`, token),
-        apiGet(`/api/employees/${id}/payroll`, token),
+        apiGet<{ success: boolean; data: any }>("/api/employees/" + id, token),
+        apiGet<{ success: boolean; data: any[] }>("/api/attendance?employeeId=" + id, token),
+        apiGet<{ success: boolean; data: any[] }>("/api/leaves?employeeId=" + id, token),
+        apiGet<{ success: boolean; data: any[] }>("/api/payroll/" + id, token),
       ]);
 
-      if (empRes.status === "fulfilled") setEmployee(empRes.value);
-      if (attRes.status === "fulfilled") setAttendance(attRes.value || []);
-      if (leaveRes.status === "fulfilled") setLeaves(leaveRes.value || []);
-      if (payRes.status === "fulfilled") setPayrolls(payRes.value || []);
+      if (empRes.status === "fulfilled") setEmployee(empRes.value?.data || empRes.value);
+      if (attRes.status === "fulfilled") setAttendance(attRes.value?.data || attRes.value || []);
+      if (leaveRes.status === "fulfilled") setLeaves(leaveRes.value?.data || leaveRes.value || []);
+      if (payRes.status === "fulfilled") setPayrolls(payRes.value?.data || payRes.value || []);
     } catch {
       toast.error("Failed to fetch employee details");
     } finally {
@@ -363,7 +363,7 @@ export default function EmployeeDetailPage({
                       <TableCell className="text-slate-300">
                         {formatDate(l.endDate)}
                       </TableCell>
-                      <TableCell className="text-slate-300">{l.days}</TableCell>
+                      <TableCell className="text-slate-300">{l.totalDays}</TableCell>
                       <TableCell>
                         <Badge
                           variant={

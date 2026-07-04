@@ -39,14 +39,17 @@ export function CheckInOut({ token }: CheckInOutProps) {
   const fetchTodayStatus = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await apiGet("/api/attendance/today", token);
-      if (res) {
+      const res = await apiGet<{ data: any[] }>("/api/attendance/me", token);
+      const records = res.data || [];
+      const today = new Date().toISOString().split('T')[0];
+      const todayRecord = records.find((r: any) => r.date?.startsWith(today));
+      if (todayRecord) {
         setTodayStatus({
-          checkedIn: !!res.checkIn,
-          checkedOut: !!res.checkOut,
-          checkInTime: res.checkIn || null,
-          checkOutTime: res.checkOut || null,
-          workHours: res.workHours || null,
+          checkedIn: !!todayRecord.checkIn,
+          checkedOut: !!todayRecord.checkOut,
+          checkInTime: todayRecord.checkIn || null,
+          checkOutTime: todayRecord.checkOut || null,
+          workHours: todayRecord.workHours || null,
         });
       }
     } catch {

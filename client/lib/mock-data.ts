@@ -77,7 +77,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
     emergencyPhone: "+1 (555) 234-9999",
     createdAt: "2024-03-15T00:00:00Z",
     updatedAt: "2025-06-01T00:00:00Z",
-    user: { id: "user-1", email: "admin@alignhr.com", role: "ADMIN" }
+    user: { id: "user-1", email: "admin@alignhr.com", role: "ADMIN", createdAt: "2024-03-15T00:00:00Z", updatedAt: "2025-06-01T00:00:00Z" }
   },
   {
     id: "emp-2",
@@ -103,7 +103,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
     emergencyPhone: "+1 (555) 345-0000",
     createdAt: "2024-04-01T00:00:00Z",
     updatedAt: "2025-06-01T00:00:00Z",
-    user: { id: "user-2", email: "hr@alignhr.com", role: "HR" }
+    user: { id: "user-2", email: "hr@alignhr.com", role: "HR", createdAt: "2024-04-01T00:00:00Z", updatedAt: "2025-06-01T00:00:00Z" }
   },
   {
     id: "emp-3",
@@ -129,7 +129,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
     emergencyPhone: "+1 (555) 456-1111",
     createdAt: "2024-06-15T00:00:00Z",
     updatedAt: "2025-06-01T00:00:00Z",
-    user: { id: "user-3", email: "john@alignhr.com", role: "EMPLOYEE" }
+    user: { id: "user-3", email: "john@alignhr.com", role: "EMPLOYEE", createdAt: "2024-06-15T00:00:00Z", updatedAt: "2025-06-01T00:00:00Z" }
   },
   {
     id: "emp-4",
@@ -155,7 +155,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
     emergencyPhone: "+1 (555) 567-2222",
     createdAt: "2024-07-01T00:00:00Z",
     updatedAt: "2025-06-01T00:00:00Z",
-    user: { id: "user-4", email: "marcus@alignhr.com", role: "EMPLOYEE" }
+    user: { id: "user-4", email: "marcus@alignhr.com", role: "EMPLOYEE", createdAt: "2024-07-01T00:00:00Z", updatedAt: "2025-06-01T00:00:00Z" }
   },
   {
     id: "emp-5",
@@ -181,7 +181,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
     emergencyPhone: "+1 (555) 678-3333",
     createdAt: "2024-08-10T00:00:00Z",
     updatedAt: "2025-06-01T00:00:00Z",
-    user: { id: "user-5", email: "amara@alignhr.com", role: "EMPLOYEE" }
+    user: { id: "user-5", email: "amara@alignhr.com", role: "EMPLOYEE", createdAt: "2024-08-10T00:00:00Z", updatedAt: "2025-06-01T00:00:00Z" }
   },
   {
     id: "emp-6",
@@ -207,7 +207,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
     emergencyPhone: "+1 (555) 789-4444",
     createdAt: "2024-11-01T00:00:00Z",
     updatedAt: "2025-06-01T00:00:00Z",
-    user: { id: "user-6", email: "lucas@alignhr.com", role: "EMPLOYEE" }
+    user: { id: "user-6", email: "lucas@alignhr.com", role: "EMPLOYEE", createdAt: "2024-11-01T00:00:00Z", updatedAt: "2025-06-01T00:00:00Z" }
   },
   {
     id: "emp-7",
@@ -233,7 +233,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
     emergencyPhone: "+1 (555) 890-5555",
     createdAt: "2025-01-10T00:00:00Z",
     updatedAt: "2025-06-01T00:00:00Z",
-    user: { id: "user-7", email: "sophie@alignhr.com", role: "HR" }
+    user: { id: "user-7", email: "sophie@alignhr.com", role: "HR", createdAt: "2025-01-10T00:00:00Z", updatedAt: "2025-06-01T00:00:00Z" }
   },
   {
     id: "emp-8",
@@ -259,7 +259,7 @@ export const MOCK_EMPLOYEES: Employee[] = [
     emergencyPhone: "+1 (555) 901-6666",
     createdAt: "2025-02-15T00:00:00Z",
     updatedAt: "2025-06-01T00:00:00Z",
-    user: { id: "user-8", email: "liam@alignhr.com", role: "EMPLOYEE" }
+    user: { id: "user-8", email: "liam@alignhr.com", role: "EMPLOYEE", createdAt: "2025-02-15T00:00:00Z", updatedAt: "2025-06-01T00:00:00Z" }
   }
 ];
 

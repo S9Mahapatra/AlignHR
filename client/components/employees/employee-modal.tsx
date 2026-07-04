@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useSession } from 'next-auth/react';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ export function EmployeeModal({
   employee,
   onSuccess,
 }: EmployeeModalProps) {
+  const { data: session } = useSession();
   const isEditing = !!employee;
 
   return (
@@ -53,11 +55,14 @@ export function EmployeeModal({
 
         <div className="py-2">
           <EmployeeForm
-            initialData={employee || undefined}
+            mode={isEditing ? "edit" : "create"}
+            employee={employee || undefined}
             onSuccess={() => {
               if (onSuccess) onSuccess();
               onOpenChange(false);
             }}
+            onCancel={() => onOpenChange(false)}
+            token={session?.user?.accessToken}
           />
         </div>
       </DialogContent>

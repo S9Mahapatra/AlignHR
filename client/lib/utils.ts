@@ -44,9 +44,18 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
- * Extracts initials from first and last names.
- * Example: ("Sushruta", "Mahapatra") → "SM"
+ * Extracts initials from a full name or first/last name pair.
+ * Examples:
+ *   getInitials("Rajesh Sharma") → "RS"
+ *   getInitials("Sushruta", "Mahapatra") → "SM"
  */
-export function getInitials(firstName: string, lastName: string): string {
-  return `${firstName[0]}${lastName[0]}`.toUpperCase();
+export function getInitials(firstName: string, lastName?: string): string {
+  if (lastName) {
+    return `${firstName[0]}${lastName[0]}`.toUpperCase();
+  }
+  const parts = firstName.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+  }
+  return parts[0]?.substring(0, 2).toUpperCase() || '??';
 }

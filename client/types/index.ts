@@ -9,9 +9,9 @@ export type Role = 'ADMIN' | 'HR' | 'EMPLOYEE';
 
 export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
-export type LeaveType = 'CASUAL' | 'SICK' | 'EARNED' | 'UNPAID';
+export type LeaveType = 'PAID' | 'SICK' | 'UNPAID';
 
-export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'LATE';
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'LEAVE';
 
 export type PayrollStatus = 'DRAFT' | 'PROCESSED' | 'PAID';
 

@@ -47,13 +47,15 @@ export default function RegisterPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstName,
-          lastName,
+          name: values.fullName.trim(),
+          employeeId: values.employeeId,
           email: values.email,
           password: values.password,
-          phone: values.phone,
-          designation: values.designation,
           role: values.role,
+          department: values.department,
+          designation: values.designation,
+          phone: values.phone,
+          address: values.address,
         }),
       });
 

@@ -47,9 +47,10 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const response = await apiPost<{
+            success: boolean;
+            message: string;
             data: {
-              user: { id: string; email: string; role: 'ADMIN' | 'HR' | 'EMPLOYEE' };
-              employee: { id: string; firstName: string; lastName: string };
+              user: { id: string; name: string; employeeId: string; email: string; role: 'ADMIN' | 'HR' | 'EMPLOYEE' };
               token: string;
             };
           }>('/api/auth/login', {
@@ -57,14 +58,14 @@ export const authOptions: NextAuthOptions = {
             password: credentials.password,
           });
 
-          const { user, employee, token } = response.data;
+          const { user, token } = response.data;
 
           return {
             id: user.id,
             email: user.email,
-            name: `${employee.firstName} ${employee.lastName}`,
+            name: user.name,
             role: user.role,
-            employeeId: employee.id,
+            employeeId: user.employeeId,
             accessToken: token,
           };
         } catch {
@@ -84,9 +85,9 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id as string;
         token.email = user.email as string;
         token.name = user.name as string;
-        token.role = (user as { role: 'ADMIN' | 'HR' | 'EMPLOYEE' }).role;
-        token.employeeId = (user as { employeeId: string }).employeeId;
-        token.accessToken = (user as { accessToken: string }).accessToken;
+        token.role = (user as unknown as { role: 'ADMIN' | 'HR' | 'EMPLOYEE' }).role;
+        token.employeeId = (user as unknown as { employeeId: string }).employeeId;
+        token.accessToken = (user as unknown as { accessToken: string }).accessToken;
       }
       return token;
     },

@@ -42,7 +42,7 @@ export function StatsCards({ stats, isLoading }: StatsCardsProps) {
     },
     {
       label: "Present Today",
-      value: stats?.presentToday || 0,
+      value: stats?.todayPresent || 0,
       icon: UserCheck,
       gradient: "from-emerald-500 to-teal-500",
       iconBg: "bg-emerald-500/20 text-emerald-400",

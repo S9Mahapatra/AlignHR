@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { signIn } from 'next-auth/react';
+import { signIn, getSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -44,8 +44,9 @@ export default function LoginPage() {
         toast.error('Invalid email or password');
       } else {
         toast.success('Welcome back to AlignHR!');
-        // Route based on role assumption from email or role
-        if (email.toLowerCase().includes('admin') || email.toLowerCase().includes('hr')) {
+        const session = await getSession();
+        const role = session?.user?.role;
+        if (role === 'ADMIN' || role === 'HR') {
           router.push('/dashboard/admin');
         } else {
           router.push('/dashboard/employee');
@@ -175,7 +176,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => handleDemoFill('admin@alignhr.com', 'admin123')}
+                onClick={() => handleDemoFill('admin@alignhr.com', 'Admin@123')}
                 className="h-auto py-2.5 px-3 flex flex-col items-start gap-1 bg-slate-950/50 border-indigo-500/20 hover:border-indigo-500/40 hover:bg-indigo-500/10 text-left transition-all"
               >
                 <div className="text-xs font-bold text-white flex items-center gap-1">
@@ -188,7 +189,7 @@ export default function LoginPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => handleDemoFill('employee@alignhr.com', 'emp123')}
+                onClick={() => handleDemoFill('employee@alignhr.com', 'Employee@123')}
                 className="h-auto py-2.5 px-3 flex flex-col items-start gap-1 bg-slate-950/50 border-emerald-500/20 hover:border-emerald-500/40 hover:bg-emerald-500/10 text-left transition-all"
               >
                 <div className="text-xs font-bold text-white flex items-center gap-1">

@@ -167,7 +167,7 @@ export function LeaveTable({
                     {formatDate(leave.endDate)}
                   </TableCell>
                   <TableCell className="text-slate-300 text-sm hidden sm:table-cell">
-                    {leave.days}
+                    {leave.totalDays}
                   </TableCell>
                   <TableCell className="text-slate-400 text-sm max-w-[200px] truncate hidden md:table-cell">
                     {leave.reason || "—"}

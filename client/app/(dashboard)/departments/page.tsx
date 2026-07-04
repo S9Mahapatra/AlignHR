@@ -45,7 +45,7 @@ export default function DepartmentsPage() {
 
     try {
       setLoading(true);
-      const res = await apiGet('/api/departments', session.user.accessToken);
+      const res = await apiGet<{ success: boolean; data: Department[]; message?: string }>('/api/departments', session.user.accessToken);
       if (res.success) {
         setDepartments(res.data);
       }
@@ -72,7 +72,7 @@ export default function DepartmentsPage() {
 
     try {
       setDeleting(true);
-      const res = await apiDelete(`/api/departments/${deleteId}`, session.user.accessToken);
+      const res = await apiDelete<{ success: boolean; message?: string }>(`/api/departments/${deleteId}`, session.user.accessToken);
       if (res.success) {
         toast.success(res.message || 'Department deleted successfully');
         fetchDepartments();

@@ -79,15 +79,15 @@ export function EmployeeForm({
         : "",
       salary: employee?.salary || 0,
       password: "",
-      role: (employee?.role as "ADMIN" | "HR" | "EMPLOYEE") || "EMPLOYEE",
+      role: (employee?.user?.role as "ADMIN" | "HR" | "EMPLOYEE") || "EMPLOYEE",
     },
   });
 
   const fetchDepartments = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await apiGet("/api/departments", token);
-      setDepartments(res || []);
+      const res = await apiGet<{ success: boolean; data: any[] }>("/api/departments", token);
+      setDepartments(res?.data || []);
     } catch {
       // Departments may not be available yet
     }

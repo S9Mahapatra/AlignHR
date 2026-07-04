@@ -63,7 +63,7 @@ export default function PayrollPage() {
       if (selectedYear) params.append('year', selectedYear);
 
       const url = `${endpoint}?${params.toString()}`;
-      const res = await apiGet(url, session.user.accessToken);
+      const res = await apiGet<{ success: boolean; data: any[] }>(url, session.user.accessToken);
       if (res.success) {
         setPayrolls(res.data);
       }

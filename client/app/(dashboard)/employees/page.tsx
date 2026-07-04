@@ -52,11 +52,13 @@ export default function EmployeesPage() {
     setIsLoading(true);
     try {
       const [empRes, deptRes] = await Promise.all([
-        apiGet("/api/employees", token),
-        apiGet("/api/departments", token),
+        apiGet<{ success: boolean; data: any[] }>("/api/employees", token),
+        apiGet<{ success: boolean; data: any[] }>("/api/departments", token),
       ]);
-      setEmployees(empRes && empRes.length > 0 ? empRes : MOCK_EMPLOYEES);
-      setDepartments(deptRes && deptRes.length > 0 ? deptRes : MOCK_DEPARTMENTS);
+      const empData = empRes?.data || [];
+      const deptData = deptRes?.data || [];
+      setEmployees(empData.length > 0 ? empData : MOCK_EMPLOYEES);
+      setDepartments(deptData.length > 0 ? deptData : MOCK_DEPARTMENTS);
     } catch {
       setEmployees(MOCK_EMPLOYEES);
       setDepartments(MOCK_DEPARTMENTS);
