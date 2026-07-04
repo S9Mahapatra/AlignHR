@@ -41,8 +41,11 @@ app.use(cookieParser());
 
 // ─── Health check ────────────────────────────────────────────────────────────
 
-app.get('/health', (_req, res) => {
-  sendSuccess(res, 'AlignHR server is running');
+app.get("/health", (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "AlignHR server is running",
+  });
 });
 
 // ─── API Routes ──────────────────────────────────────────────────────────────

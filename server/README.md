@@ -251,3 +251,48 @@ Seeds the database with:
 - Role-based middleware protects admin/HR endpoints
 - Employees can only access their own data
 - ADMIN accounts cannot be created via public registration
+
+## Docker Build Commands
+
+### Build backend image
+```bash
+cd server
+docker build -t alignhr-server .
+```
+
+### Run backend container
+```bash
+docker run --env-file .env -p 5000:5000 alignhr-server
+```
+
+### Run with Docker Compose from root
+```bash
+docker compose up --build
+```
+
+### Stop containers
+```bash
+docker compose down
+```
+
+### Check logs
+```bash
+docker logs -f alignhr-server
+```
+
+### Test health route
+```bash
+curl http://localhost:5000/health
+```
+
+## Docker Deployment Notes
+
+- The backend connects to Neon PostgreSQL using `DATABASE_URL`.
+- The project uses only `.env`, not `.env.example`.
+- The `.env` file is loaded by Docker Compose through `env_file`.
+- The `.env` file is never copied into the Docker image.
+- Prisma Client is generated during the Docker build.
+- Prisma migrations run using `prisma migrate deploy` at container startup.
+- Seed data should be run manually using `npm run prisma:seed`.
+- The server listens on `0.0.0.0` for Docker compatibility.
+- The backend exposes `/health` for Docker and cloud health checks.
