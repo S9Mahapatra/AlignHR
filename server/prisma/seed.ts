@@ -1,5 +1,6 @@
 import { Role, LeaveType, LeaveStatus, AttendanceStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import 'dotenv/config';
 import { prisma } from '../src/config/prisma';
 
 const SALT_ROUNDS = 10;
