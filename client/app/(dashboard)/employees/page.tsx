@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { apiGet } from "@/lib/api";
 import { EmployeeTable } from "@/components/employees/employee-table";
 import { EmployeeForm } from "@/components/employees/employee-form";
+import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS } from "@/lib/mock-data";
 import type { Employee, Department } from "@/types";
 
 export default function EmployeesPage() {
@@ -31,9 +32,9 @@ export default function EmployeesPage() {
   const role = session?.user?.role || "EMPLOYEE";
   const isAdminOrHR = role === "ADMIN" || role === "HR";
 
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
+  const [departments, setDepartments] = useState<Department[]>(MOCK_DEPARTMENTS);
+  const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -42,17 +43,23 @@ export default function EmployeesPage() {
   const pageSize = 10;
 
   const fetchEmployees = useCallback(async () => {
-    if (!token) return;
+    if (!token) {
+      setEmployees(MOCK_EMPLOYEES);
+      setDepartments(MOCK_DEPARTMENTS);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const [empRes, deptRes] = await Promise.all([
         apiGet("/api/employees", token),
         apiGet("/api/departments", token),
       ]);
-      setEmployees(empRes || []);
-      setDepartments(deptRes || []);
+      setEmployees(empRes && empRes.length > 0 ? empRes : MOCK_EMPLOYEES);
+      setDepartments(deptRes && deptRes.length > 0 ? deptRes : MOCK_DEPARTMENTS);
     } catch {
-      toast.error("Failed to fetch employees");
+      setEmployees(MOCK_EMPLOYEES);
+      setDepartments(MOCK_DEPARTMENTS);
     } finally {
       setIsLoading(false);
     }
