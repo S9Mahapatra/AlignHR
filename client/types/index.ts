@@ -53,6 +53,7 @@ export interface Employee {
   avatar?: string;
   emergencyContact?: string;
   emergencyPhone?: string;
+  profile?: any;
   createdAt: string;
   updatedAt: string;
 }

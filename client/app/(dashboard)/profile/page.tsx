@@ -109,7 +109,7 @@ export default function ProfilePage() {
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
                   {employee.name || `${employee.firstName} ${employee.lastName}`}
                 </h1>
-                <StatusBadge status={employee.status} />
+                <StatusBadge status={employee.profile?.status || employee.status || 'UNKNOWN'} />
                 <StatusBadge status={session?.user?.role || employee.user?.role || 'EMPLOYEE'} />
               </div>
               <div className="text-base font-medium text-indigo-300">
@@ -195,7 +195,7 @@ export default function ProfilePage() {
             </div>
             <div className="grid grid-cols-3 gap-2 py-2">
               <span className="text-slate-400">Employment Status</span>
-              <span className="col-span-2"><StatusBadge status={employee.status} /></span>
+              <span className="col-span-2"><StatusBadge status={employee.profile?.status || employee.status || 'UNKNOWN'} /></span>
             </div>
           </CardContent>
           <CardFooter className="pt-3 border-t border-white/5 bg-slate-950/30 text-xs text-slate-500">

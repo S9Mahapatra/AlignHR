@@ -425,7 +425,7 @@ export default function AdminDashboardPage() {
                       <StatusBadge status={emp.user?.role || 'EMPLOYEE'} />
                     </td>
                     <td className="py-3 px-6 text-right">
-                      <StatusBadge status={emp.status} />
+                      <StatusBadge status={emp.profile?.status || emp.status} />
                     </td>
                   </tr>
                 ))}

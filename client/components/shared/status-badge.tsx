@@ -19,8 +19,8 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status, className, showIcon = true }: StatusBadgeProps) {
-  const getBadgeStyle = (val: string) => {
-    switch (val.toUpperCase()) {
+  const getBadgeStyle = (val?: string) => {
+    switch ((val || '').toUpperCase()) {
       // Success / Active / Approved / Present / Paid
       case 'PRESENT':
       case 'APPROVED':
@@ -89,7 +89,7 @@ export function StatusBadge({ status, className, showIcon = true }: StatusBadgeP
       className={cn('inline-flex items-center font-medium text-xs px-2.5 py-0.5 rounded-md transition-colors', style.bg, className)}
     >
       {showIcon && style.icon}
-      {status.replace(/_/g, ' ')}
+      {(status || 'UNKNOWN').replace(/_/g, ' ')}
     </Badge>
   );
 }
