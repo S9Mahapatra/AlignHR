@@ -53,7 +53,7 @@ export const authOptions: NextAuthOptions = {
               user: { id: string; name: string; employeeId: string; email: string; role: 'ADMIN' | 'HR' | 'EMPLOYEE' };
               token: string;
             };
-          }>('/api/auth/login', {
+          }>('/auth/login', {
             email: credentials.email,
             password: credentials.password,
           });

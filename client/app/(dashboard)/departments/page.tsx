@@ -45,7 +45,7 @@ export default function DepartmentsPage() {
 
     try {
       setLoading(true);
-      const res = await apiGet<{ success: boolean; data: Department[]; message?: string }>('/api/departments', session.user.accessToken);
+      const res = await apiGet<{ success: boolean; data: Department[]; message?: string }>('/departments', session.user.accessToken);
       if (res.success) {
         setDepartments(res.data);
       }

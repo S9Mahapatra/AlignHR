@@ -57,7 +57,7 @@ export default function PayrollPage() {
 
     try {
       setLoading(true);
-      const endpoint = isAdmin ? '/api/payroll' : '/api/payroll/my';
+      const endpoint = isAdmin ? '/payroll' : '/payroll/my';
       const params = new URLSearchParams();
       if (selectedMonth !== 'ALL') params.append('month', selectedMonth);
       if (selectedYear) params.append('year', selectedYear);

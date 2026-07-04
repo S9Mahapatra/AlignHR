@@ -96,7 +96,7 @@ export function PayrollGenerate({
   const fetchEmployees = async () => {
     try {
       setLoadingEmployees(true);
-      const res = await apiGet<{ success: boolean; data: any[] }>('/api/employees?status=ACTIVE', session?.user?.accessToken);
+      const res = await apiGet<{ success: boolean; data: any[] }>('/employees?status=ACTIVE', session?.user?.accessToken);
       if (res.success) {
         setEmployees(res.data);
       }
