@@ -1,11 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 
-/**
- * PrismaClient singleton.
- * During development with hot-reload (tsx watch) every restart would create a
- * new PrismaClient and eventually exhaust the connection pool. We store the
- * client on `globalThis` so the same instance is reused across hot-reloads.
- */
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

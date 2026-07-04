@@ -1,7 +1,6 @@
-import { PrismaClient, Role, LeaveType, LeaveStatus, AttendanceStatus } from '@prisma/client';
+import { Role, LeaveType, LeaveStatus, AttendanceStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import { prisma } from '../src/config/prisma';
 
 const SALT_ROUNDS = 10;
 
