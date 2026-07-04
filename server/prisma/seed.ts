@@ -19,7 +19,21 @@ async function main() {
   await prisma.attendance.deleteMany();
   await prisma.employeeProfile.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.department.deleteMany();
   console.log('   ✓ All tables cleared.\n');
+
+  // ─── 1.5 Create Departments ────────────────────────────────────────────────
+  console.log('🏢 Creating departments...');
+  await prisma.department.createMany({
+    data: [
+      { id: 'Engineering', name: 'Engineering' },
+      { id: 'Human Resources', name: 'Human Resources' },
+      { id: 'Marketing', name: 'Marketing' },
+      { id: 'Finance', name: 'Finance' },
+      { id: 'Management', name: 'Management' },
+    ],
+  });
+  console.log('   ✓ Departments created.\n');
 
   // ─── 2. Hash passwords ───────────────────────────────────────────────────
   const adminPassword = await hashPassword('Admin@123');
@@ -39,7 +53,7 @@ async function main() {
         create: {
           phone: '+91-9876543210',
           address: '42, MG Road, Bengaluru',
-          department: 'Management',
+          departmentId: 'Management',
           designation: 'System Administrator',
           joiningDate: new Date('2020-01-10'),
           status: 'ACTIVE',
@@ -62,7 +76,7 @@ async function main() {
         create: {
           phone: '+91-9123456780',
           address: '15, Residency Road, Bengaluru',
-          department: 'Human Resources',
+          departmentId: 'Human Resources',
           designation: 'HR Manager',
           joiningDate: new Date('2021-06-01'),
           status: 'ACTIVE',
@@ -80,7 +94,7 @@ async function main() {
       name: 'Tushar Kanti Dey',
       employeeId: 'EMP001',
       email: 'employee@alignhr.com',
-      department: 'Engineering',
+      departmentId: 'Engineering',
       designation: 'Frontend Engineer',
       phone: '9876543210',
       address: 'Kolkata, West Bengal',
@@ -90,7 +104,7 @@ async function main() {
       name: 'John Mathew',
       employeeId: 'EMP002',
       email: 'john@alignhr.com',
-      department: 'Engineering',
+      departmentId: 'Engineering',
       designation: 'Senior Software Engineer',
       phone: '+91-9988776601',
       address: '78, Koramangala, Bengaluru',
@@ -100,7 +114,7 @@ async function main() {
       name: 'Jane D\'Souza',
       employeeId: 'EMP003',
       email: 'jane@alignhr.com',
-      department: 'Marketing',
+      departmentId: 'Marketing',
       designation: 'Marketing Lead',
       phone: '+91-9988776603',
       address: '23, Indiranagar, Bengaluru',
@@ -110,7 +124,7 @@ async function main() {
       name: 'Bob Kumar',
       employeeId: 'EMP004',
       email: 'bob@alignhr.com',
-      department: 'Finance',
+      departmentId: 'Finance',
       designation: 'Financial Analyst',
       phone: '+91-9988776605',
       address: '56, HSR Layout, Bengaluru',
@@ -120,7 +134,7 @@ async function main() {
       name: 'Alice Verma',
       employeeId: 'EMP005',
       email: 'alice@alignhr.com',
-      department: 'Engineering',
+      departmentId: 'Engineering',
       designation: 'Software Engineer',
       phone: '+91-9988776607',
       address: '12, Whitefield, Bengaluru',
@@ -130,7 +144,7 @@ async function main() {
       name: 'Charlie Nair',
       employeeId: 'EMP006',
       email: 'charlie@alignhr.com',
-      department: 'Human Resources',
+      departmentId: 'Human Resources',
       designation: 'HR Executive',
       phone: '+91-9988776609',
       address: '34, JP Nagar, Bengaluru',
@@ -140,7 +154,7 @@ async function main() {
       name: 'Priya Menon',
       employeeId: 'EMP007',
       email: 'priya@alignhr.com',
-      department: 'Engineering',
+      departmentId: 'Engineering',
       designation: 'Backend Engineer',
       phone: '+91-9988776611',
       address: '67, BTM Layout, Bengaluru',
@@ -150,7 +164,7 @@ async function main() {
       name: 'Vikram Singh',
       employeeId: 'EMP008',
       email: 'vikram@alignhr.com',
-      department: 'Marketing',
+      departmentId: 'Marketing',
       designation: 'Content Strategist',
       phone: '+91-9988776613',
       address: '89, Jayanagar, Bengaluru',
@@ -171,7 +185,7 @@ async function main() {
           create: {
             phone: emp.phone,
             address: emp.address,
-            department: emp.department,
+            departmentId: emp.department,
             designation: emp.designation,
             joiningDate: emp.joiningDate,
             status: 'ACTIVE',

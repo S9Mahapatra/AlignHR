@@ -63,7 +63,7 @@ export const updateEmployee = async (id: string, data: UpdateEmployeeAdminInput)
 
     // Update profile-level fields
     const profileUpdate: any = {};
-    if (data.department !== undefined) profileUpdate.department = data.department;
+    if (data.department !== undefined) profileUpdate.departmentId = data.department;
     if (data.designation !== undefined) profileUpdate.designation = data.designation;
     if (data.phone !== undefined) profileUpdate.phone = data.phone;
     if (data.address !== undefined) profileUpdate.address = data.address;

@@ -46,7 +46,7 @@ export const register = async (data: RegisterInput) => {
         userId: user.id,
         phone: data.phone,
         address: data.address,
-        department: data.department,
+        departmentId: data.department,
         designation: data.designation,
       },
     });

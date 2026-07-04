@@ -12,6 +12,7 @@ import employeeRoutes from './routes/employee.routes';
 import attendanceRoutes from './routes/attendance.routes';
 import leaveRoutes from './routes/leave.routes';
 import payrollRoutes from './routes/payroll.routes';
+import departmentRoutes from './routes/department.routes';
 
 const app = express();
 
@@ -50,25 +51,12 @@ app.get("/health", (_req, res) => {
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
 
-// Mock departments route (AlignHR uses strings for departments internally)
-app.get('/api/departments', (_req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { id: 'Engineering', name: 'Engineering' },
-      { id: 'Human Resources', name: 'Human Resources' },
-      { id: 'Marketing', name: 'Marketing' },
-      { id: 'Finance', name: 'Finance' },
-      { id: 'Management', name: 'Management' },
-    ],
-  });
-});
-
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/payroll', payrollRoutes);
+app.use('/api/departments', departmentRoutes);
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 

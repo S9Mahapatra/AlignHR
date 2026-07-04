@@ -99,7 +99,7 @@ export const getAllLeaves = async (
   }
   if (filters.department) {
     const usersInDept = await prisma.user.findMany({
-      where: { profile: { department: filters.department } },
+      where: { profile: { departmentId: filters.department } },
       select: { id: true },
     });
     where.userId = { in: usersInDept.map((u) => u.id) };
