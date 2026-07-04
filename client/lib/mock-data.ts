@@ -456,10 +456,10 @@ export const MOCK_ACTIVITIES: ActivityItem[] = [
   {
     id: "act-3",
     type: "LEAVE_APPROVED",
-    title: "Elena Rostova approved sick leave for Lucas Silva",
+    title: "Sneha Patel approved sick leave for Lucas Silva",
     description: "2 days sick leave approved for fever and flu recovery.",
     timestamp: "1 day ago",
-    user: { name: "Elena Rostova", avatar: MOCK_EMPLOYEES[1].avatar, role: "HR MANAGER" }
+    user: { name: "Sneha Patel", avatar: MOCK_EMPLOYEES[1].avatar, role: "HR MANAGER" }
   },
   {
     id: "act-4",
