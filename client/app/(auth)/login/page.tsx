@@ -162,8 +162,7 @@ export default function LoginPage() {
         </Card>
 
         {/* Demo Credentials Interactive Card */}
-        <Card className="glass-card bg-slate-900/60 border-white/10">
-          <CardContent className="p-4 space-y-3">
+          {/* <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
               <span className="flex items-center gap-1.5 text-indigo-400">
                 <ShieldCheck className="w-4 h-4" />
@@ -199,8 +198,7 @@ export default function LoginPage() {
                 <div className="text-[10px] font-mono text-slate-400 truncate w-full">employee@alignhr.com</div>
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </CardContent> */}
       </div>
     </div>
   );
