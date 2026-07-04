@@ -41,12 +41,25 @@ export const register = async (data: RegisterInput) => {
       },
     });
 
+    let deptId = null;
+    if (data.department) {
+      let dept = await tx.department.findUnique({
+        where: { name: data.department }
+      });
+      if (!dept) {
+        dept = await tx.department.create({
+          data: { name: data.department }
+        });
+      }
+      deptId = dept.id;
+    }
+
     const profile = await tx.employeeProfile.create({
       data: {
         userId: user.id,
         phone: data.phone,
         address: data.address,
-        departmentId: data.department,
+        departmentId: deptId,
         designation: data.designation,
       },
     });

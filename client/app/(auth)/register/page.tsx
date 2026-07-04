@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormInput } from '@/components/shared/form-input';
 import { registerSchema } from '@/lib/validations';
+import { apiPost } from '@/lib/api';
 import { DEPARTMENTS, DESIGNATIONS, ROLES } from '@/lib/constants';
 import { toast } from 'sonner';
 import { Layers, ArrowRight, Loader2, Sparkles } from 'lucide-react';
@@ -43,35 +44,22 @@ export default function RegisterPage() {
       const [firstName, ...lastParts] = values.fullName.trim().split(' ');
       const lastName = lastParts.join(' ') || 'User';
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: values.fullName.trim(),
-          employeeId: values.employeeId,
-          email: values.email,
-          password: values.password,
-          role: values.role,
-          department: values.department,
-          designation: values.designation,
-          phone: values.phone,
-          address: values.address,
-        }),
+      await apiPost('/auth/register', {
+        name: values.fullName.trim(),
+        employeeId: values.employeeId,
+        email: values.email,
+        password: values.password,
+        role: values.role,
+        department: values.department,
+        designation: values.designation,
+        phone: values.phone,
+        address: values.address,
       });
-
-      const data = await res.json();
-      if (!res.ok && res.status !== 201) {
-        throw new Error(data.message || 'Registration failed');
-      }
 
       toast.success('Account created successfully! Please sign in with your new credentials.');
       router.push('/login');
     } catch (error: any) {
-      // For offline demo or hackathon mode without active backend, simulate successful registration
-      toast.success('Demo account initialized! Proceeding to login screen...');
-      setTimeout(() => {
-        router.push('/login');
-      }, 1000);
+      toast.error(error.message || 'Registration failed');
     } finally {
       setSubmitting(false);
     }
