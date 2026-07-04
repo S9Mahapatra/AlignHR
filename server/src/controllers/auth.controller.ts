@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { sendSuccess } from '../utils/apiResponse';
+import { asyncHandler } from '../utils/async-handler';
+import { sendSuccess } from '../utils/response';
 import * as authService from '../services/auth.service';
 
 /**
@@ -8,7 +8,7 @@ import * as authService from '../services/auth.service';
  */
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const result = await authService.register(req.body);
-  sendSuccess(res, result, 'Registration successful.', 201);
+  sendSuccess(res, 'Registration successful.', result, 201);
 });
 
 /**
@@ -16,13 +16,13 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
  */
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const result = await authService.login(req.body);
-  sendSuccess(res, result, 'Login successful.');
+  sendSuccess(res, 'Login successful.', result);
 });
 
 /**
  * GET /api/auth/me
  */
 export const getMe = asyncHandler(async (req: Request, res: Response) => {
-  const user = await authService.getMe(req.user!.userId);
-  sendSuccess(res, user, 'User profile retrieved.');
+  const user = await authService.getMe(req.user!.id);
+  sendSuccess(res, 'User profile retrieved.', user);
 });

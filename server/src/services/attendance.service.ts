@@ -1,15 +1,6 @@
-import { Prisma } from '@prisma/client';
-import { prisma } from '../config/database';
-import { AppError } from '../middleware/errorHandler';
-
-export interface AttendanceFilters {
-  employeeId?: string;
-  startDate?: string;
-  endDate?: string;
-  status?: string;
-  page?: number;
-  limit?: number;
-}
+import { Prisma, AttendanceStatus } from '@prisma/client';
+import { prisma } from '../config/prisma';
+import { AppError } from '../middleware/error.middleware';
 
 /**
  * Get today's date at midnight (UTC).
@@ -20,63 +11,16 @@ const getTodayDate = (): Date => {
 };
 
 /**
- * Get all attendance records with filters and pagination.
- */
-export const getAll = async (filters: AttendanceFilters = {}) => {
-  const { employeeId, startDate, endDate, status, page = 1, limit = 10 } = filters;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.AttendanceWhereInput = {};
-
-  if (employeeId) {
-    where.employeeId = employeeId;
-  }
-
-  if (startDate || endDate) {
-    where.date = {};
-    if (startDate) {
-      (where.date as Prisma.DateTimeFilter).gte = new Date(startDate);
-    }
-    if (endDate) {
-      (where.date as Prisma.DateTimeFilter).lte = new Date(endDate);
-    }
-  }
-
-  if (status) {
-    where.status = status as any;
-  }
-
-  const [records, total] = await Promise.all([
-    prisma.attendance.findMany({
-      where,
-      include: {
-        employee: {
-          select: { id: true, firstName: true, lastName: true, employeeCode: true, department: { select: { name: true } } },
-        },
-      },
-      skip,
-      take: limit,
-      orderBy: { date: 'desc' },
-    }),
-    prisma.attendance.count({ where }),
-  ]);
-
-  return { records, total, page, limit };
-};
-
-/**
  * Check in for the current day.
+ * Creates an attendance record with status PRESENT.
  */
-export const checkIn = async (employeeId: string, notes?: string) => {
+export const checkIn = async (userId: string) => {
   const today = getTodayDate();
 
   // Check if already checked in today
   const existing = await prisma.attendance.findUnique({
     where: {
-      employeeId_date: {
-        employeeId,
-        date: today,
-      },
+      userId_date: { userId, date: today },
     },
   });
 
@@ -84,25 +28,15 @@ export const checkIn = async (employeeId: string, notes?: string) => {
     throw new AppError('You have already checked in today.', 400);
   }
 
-  const now = new Date();
-  // Consider late if check-in is after 9:30 AM
-  const lateThreshold = new Date(today);
-  lateThreshold.setUTCHours(9, 30, 0, 0);
-
-  const status = now > lateThreshold ? 'LATE' : 'PRESENT';
-
   const attendance = await prisma.attendance.create({
     data: {
-      employeeId,
+      userId,
       date: today,
-      checkIn: now,
-      status,
-      notes,
+      checkIn: new Date(),
+      status: 'PRESENT',
     },
     include: {
-      employee: {
-        select: { firstName: true, lastName: true },
-      },
+      user: { select: { id: true, name: true, employeeId: true } },
     },
   });
 
@@ -111,16 +45,14 @@ export const checkIn = async (employeeId: string, notes?: string) => {
 
 /**
  * Check out for the current day.
+ * Calculates workHours. If < 4 hours, marks HALF_DAY.
  */
-export const checkOut = async (employeeId: string, notes?: string) => {
+export const checkOut = async (userId: string) => {
   const today = getTodayDate();
 
   const existing = await prisma.attendance.findUnique({
     where: {
-      employeeId_date: {
-        employeeId,
-        date: today,
-      },
+      userId_date: { userId, date: today },
     },
   });
 
@@ -141,7 +73,7 @@ export const checkOut = async (employeeId: string, notes?: string) => {
   }
 
   // Mark as half day if worked less than 4 hours
-  const status = workHours < 4 ? 'HALF_DAY' : existing.status;
+  const status: AttendanceStatus = workHours < 4 ? 'HALF_DAY' : 'PRESENT';
 
   const attendance = await prisma.attendance.update({
     where: { id: existing.id },
@@ -149,12 +81,9 @@ export const checkOut = async (employeeId: string, notes?: string) => {
       checkOut: now,
       workHours,
       status,
-      notes: notes || existing.notes,
     },
     include: {
-      employee: {
-        select: { firstName: true, lastName: true },
-      },
+      user: { select: { id: true, name: true, employeeId: true } },
     },
   });
 
@@ -162,51 +91,126 @@ export const checkOut = async (employeeId: string, notes?: string) => {
 };
 
 /**
- * Get attendance records for a specific employee.
+ * Get own attendance records with optional filters.
  */
-export const getMyAttendance = async (employeeId: string, filters: AttendanceFilters = {}) => {
-  const { startDate, endDate, page = 1, limit = 30 } = filters;
-  const skip = (page - 1) * limit;
+export const getMyAttendance = async (
+  userId: string,
+  filters: { startDate?: string; endDate?: string; status?: string } = {},
+) => {
+  const where: Prisma.AttendanceWhereInput = { userId };
 
-  const where: Prisma.AttendanceWhereInput = { employeeId };
-
-  if (startDate || endDate) {
+  if (filters.startDate || filters.endDate) {
     where.date = {};
-    if (startDate) {
-      (where.date as Prisma.DateTimeFilter).gte = new Date(startDate);
+    if (filters.startDate) {
+      (where.date as Prisma.DateTimeFilter).gte = new Date(filters.startDate);
     }
-    if (endDate) {
-      (where.date as Prisma.DateTimeFilter).lte = new Date(endDate);
+    if (filters.endDate) {
+      (where.date as Prisma.DateTimeFilter).lte = new Date(filters.endDate);
     }
   }
 
-  const [records, total] = await Promise.all([
-    prisma.attendance.findMany({
-      where,
-      skip,
-      take: limit,
-      orderBy: { date: 'desc' },
-    }),
-    prisma.attendance.count({ where }),
-  ]);
+  if (filters.status) {
+    where.status = filters.status as AttendanceStatus;
+  }
 
-  return { records, total, page, limit };
+  const records = await prisma.attendance.findMany({
+    where,
+    orderBy: { date: 'desc' },
+  });
+
+  return records;
 };
 
 /**
- * Get today's attendance status for an employee.
+ * Get all attendance records (ADMIN/HR).
+ * Supports filters: employeeId, department, status, startDate, endDate.
  */
-export const getTodayStatus = async (employeeId: string) => {
-  const today = getTodayDate();
+export const getAllAttendance = async (
+  filters: {
+    employeeId?: string;
+    department?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  } = {},
+) => {
+  const where: Prisma.AttendanceWhereInput = {};
 
-  const record = await prisma.attendance.findUnique({
-    where: {
-      employeeId_date: {
-        employeeId,
-        date: today,
+  if (filters.employeeId) {
+    // Look up user by their employeeId field
+    const user = await prisma.user.findUnique({ where: { employeeId: filters.employeeId } });
+    if (user) {
+      where.userId = user.id;
+    } else {
+      return [];
+    }
+  }
+
+  if (filters.department) {
+    const usersInDept = await prisma.user.findMany({
+      where: { profile: { department: filters.department } },
+      select: { id: true },
+    });
+    where.userId = { in: usersInDept.map((u) => u.id) };
+  }
+
+  if (filters.startDate || filters.endDate) {
+    where.date = {};
+    if (filters.startDate) {
+      (where.date as Prisma.DateTimeFilter).gte = new Date(filters.startDate);
+    }
+    if (filters.endDate) {
+      (where.date as Prisma.DateTimeFilter).lte = new Date(filters.endDate);
+    }
+  }
+
+  if (filters.status) {
+    where.status = filters.status as AttendanceStatus;
+  }
+
+  const records = await prisma.attendance.findMany({
+    where,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          employeeId: true,
+          email: true,
+          profile: {
+            select: { department: true, designation: true },
+          },
+        },
       },
+    },
+    orderBy: { date: 'desc' },
+  });
+
+  return records;
+};
+
+/**
+ * Update an attendance record (ADMIN/HR).
+ */
+export const updateAttendance = async (
+  id: string,
+  data: { status?: AttendanceStatus; remarks?: string },
+) => {
+  const existing = await prisma.attendance.findUnique({ where: { id } });
+  if (!existing) {
+    throw new AppError('Attendance record not found.', 404);
+  }
+
+  const updated = await prisma.attendance.update({
+    where: { id },
+    data: {
+      ...(data.status && { status: data.status }),
+      ...(data.remarks !== undefined && { remarks: data.remarks }),
+    },
+    include: {
+      user: { select: { id: true, name: true, employeeId: true } },
     },
   });
 
-  return record;
+  return updated;
 };

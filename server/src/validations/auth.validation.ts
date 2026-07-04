@@ -1,17 +1,21 @@
 import { z } from 'zod';
 
+export const registerSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  employeeId: z.string().min(1, 'Employee ID is required'),
+  email: z.string().email('Please provide a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.enum(['EMPLOYEE', 'HR']).optional().default('EMPLOYEE'),
+  department: z.string().optional(),
+  designation: z.string().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+});
+
 export const loginSchema = z.object({
   email: z.string().email('Please provide a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(1, 'Password is required'),
 });
 
-export const registerSchema = z.object({
-  email: z.string().email('Please provide a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
-  role: z.enum(['ADMIN', 'HR', 'EMPLOYEE']).optional().default('EMPLOYEE'),
-});
-
-export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;

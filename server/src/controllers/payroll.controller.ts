@@ -1,51 +1,51 @@
 import { Request, Response } from 'express';
-import { PayrollStatus } from '@prisma/client';
-import { asyncHandler, AppError } from '../middleware/errorHandler';
-import { sendSuccess, sendPaginated } from '../utils/apiResponse';
+import { asyncHandler } from '../utils/async-handler';
+import { sendSuccess } from '../utils/response';
 import * as payrollService from '../services/payroll.service';
 
 /**
- * GET /api/payroll
- */
-export const getAll = asyncHandler(async (req: Request, res: Response) => {
-  const { employeeId, month, year, status, page, limit } = req.query;
-
-  const result = await payrollService.getAll({
-    employeeId: employeeId as string,
-    month: month ? parseInt(month as string, 10) : undefined,
-    year: year ? parseInt(year as string, 10) : undefined,
-    status: status as PayrollStatus,
-    page: page ? parseInt(page as string, 10) : 1,
-    limit: limit ? parseInt(limit as string, 10) : 10,
-  });
-
-  sendPaginated(res, result.records, result.total, result.page, result.limit);
-});
-
-/**
- * GET /api/payroll/my
+ * GET /api/payroll/me — Employee views own payroll (read-only)
  */
 export const getMyPayroll = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.employeeId) {
-    throw new AppError('Employee profile not found for this user.', 404);
-  }
-
-  const records = await payrollService.getMyPayroll(req.user.employeeId);
-  sendSuccess(res, records, 'Payroll records retrieved.');
+  const records = await payrollService.getMyPayroll(req.user!.id);
+  sendSuccess(res, 'Payroll records retrieved.', records);
 });
 
 /**
- * POST /api/payroll/generate
+ * GET /api/payroll — Get all payroll records (ADMIN/HR)
  */
-export const generate = asyncHandler(async (req: Request, res: Response) => {
-  const result = await payrollService.generate(req.body);
-  sendSuccess(res, result, 'Payroll generated successfully.', 201);
+export const getAll = asyncHandler(async (req: Request, res: Response) => {
+  const { employeeId, department, month, year, status } = req.query;
+  const records = await payrollService.getAllPayroll({
+    employeeId: employeeId as string,
+    department: department as string,
+    month: month as string,
+    year: year as string,
+    status: status as string,
+  });
+  sendSuccess(res, 'All payroll records retrieved.', records);
 });
 
 /**
- * PUT /api/payroll/:id/pay
+ * GET /api/payroll/:employeeId — Get payroll for one employee (ADMIN/HR)
  */
-export const markAsPaid = asyncHandler(async (req: Request, res: Response) => {
-  const payroll = await payrollService.markAsPaid(req.params.id);
-  sendSuccess(res, payroll, 'Payroll marked as paid.');
+export const getByEmployeeId = asyncHandler(async (req: Request, res: Response) => {
+  const records = await payrollService.getPayrollByEmployeeId(req.params.employeeId as string);
+  sendSuccess(res, 'Employee payroll retrieved.', records);
+});
+
+/**
+ * POST /api/payroll — Create payroll record (ADMIN/HR)
+ */
+export const create = asyncHandler(async (req: Request, res: Response) => {
+  const payroll = await payrollService.createPayroll(req.body);
+  sendSuccess(res, 'Payroll created successfully.', payroll, 201);
+});
+
+/**
+ * PATCH /api/payroll/:id — Update payroll record (ADMIN/HR)
+ */
+export const update = asyncHandler(async (req: Request, res: Response) => {
+  const payroll = await payrollService.updatePayroll(req.params.id as string, req.body);
+  sendSuccess(res, 'Payroll updated successfully.', payroll);
 });

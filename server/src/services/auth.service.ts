@@ -1,51 +1,65 @@
-import { Role } from '@prisma/client';
-import { prisma } from '../config/database';
-import { AppError } from '../middleware/errorHandler';
+import { prisma } from '../config/prisma';
+import { AppError } from '../middleware/error.middleware';
 import { hashPassword, comparePassword } from '../utils/password';
 import { generateToken } from '../utils/jwt';
 import { RegisterInput, LoginInput } from '../validations/auth.validation';
 
 /**
  * Register a new user and create a corresponding employee profile.
+ * Only EMPLOYEE and HR roles are allowed via public registration.
+ * ADMIN accounts should only be created through seed data.
  */
 export const register = async (data: RegisterInput) => {
-  // Check if user already exists
-  const existingUser = await prisma.user.findUnique({
-    where: { email: data.email },
+  // Check if user already exists by email or employeeId
+  const existingUser = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: data.email },
+        { employeeId: data.employeeId },
+      ],
+    },
   });
 
   if (existingUser) {
-    throw new AppError('A user with this email already exists.', 409);
+    if (existingUser.email === data.email) {
+      throw new AppError('A user with this email already exists.', 409);
+    }
+    throw new AppError('A user with this employee ID already exists.', 409);
   }
 
   const hashedPassword = await hashPassword(data.password);
 
-  // Create user and employee in a transaction
+  // Create user and employee profile in a transaction
   const result = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
       data: {
+        name: data.name,
+        employeeId: data.employeeId,
         email: data.email,
         password: hashedPassword,
-        role: (data.role as Role) || 'EMPLOYEE',
+        role: data.role || 'EMPLOYEE',
       },
     });
 
-    const employee = await tx.employee.create({
+    const profile = await tx.employeeProfile.create({
       data: {
         userId: user.id,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        department: data.department,
+        designation: data.designation,
       },
     });
 
-    return { user, employee };
+    return { user, profile };
   });
 
   const token = generateToken({
-    userId: result.user.id,
+    id: result.user.id,
+    name: result.user.name,
+    employeeId: result.user.employeeId,
+    email: result.user.email,
     role: result.user.role,
-    employeeId: result.employee.id,
   });
 
   // Return user without password
@@ -53,7 +67,6 @@ export const register = async (data: RegisterInput) => {
 
   return {
     user: userWithoutPassword,
-    employee: result.employee,
     token,
   };
 };
@@ -64,9 +77,6 @@ export const register = async (data: RegisterInput) => {
 export const login = async (data: LoginInput) => {
   const user = await prisma.user.findUnique({
     where: { email: data.email },
-    include: {
-      employee: true,
-    },
   });
 
   if (!user) {
@@ -80,31 +90,34 @@ export const login = async (data: LoginInput) => {
   }
 
   const token = generateToken({
-    userId: user.id,
+    id: user.id,
+    name: user.name,
+    employeeId: user.employeeId,
+    email: user.email,
     role: user.role,
-    employeeId: user.employee?.id,
   });
 
-  const { password: _, ...userWithoutPassword } = user;
-
   return {
-    user: userWithoutPassword,
+    user: {
+      id: user.id,
+      name: user.name,
+      employeeId: user.employeeId,
+      email: user.email,
+      role: user.role,
+    },
     token,
   };
 };
 
 /**
  * Get the currently authenticated user's profile.
+ * Password hash is never returned.
  */
 export const getMe = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      employee: {
-        include: {
-          department: true,
-        },
-      },
+      profile: true,
     },
   });
 

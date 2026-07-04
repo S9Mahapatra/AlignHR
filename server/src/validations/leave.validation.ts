@@ -1,20 +1,19 @@
 import { z } from 'zod';
 
+/** Schema for employee creating a leave request */
 export const createLeaveSchema = z.object({
-  leaveType: z.enum(['CASUAL', 'SICK', 'EARNED', 'UNPAID'], {
+  leaveType: z.enum(['PAID', 'SICK', 'UNPAID'], {
     required_error: 'Leave type is required',
   }),
   startDate: z.string().min(1, 'Start date is required'),
   endDate: z.string().min(1, 'End date is required'),
-  reason: z.string().optional(),
+  remarks: z.string().optional(),
 });
 
-export const updateLeaveStatusSchema = z.object({
-  status: z.enum(['APPROVED', 'REJECTED'], {
-    required_error: 'Status is required (APPROVED or REJECTED)',
-  }),
-  rejectionNote: z.string().optional(),
+/** Schema for ADMIN/HR approve/reject action */
+export const leaveActionSchema = z.object({
+  adminComment: z.string().optional(),
 });
 
 export type CreateLeaveInput = z.infer<typeof createLeaveSchema>;
-export type UpdateLeaveStatusInput = z.infer<typeof updateLeaveStatusSchema>;
+export type LeaveActionInput = z.infer<typeof leaveActionSchema>;

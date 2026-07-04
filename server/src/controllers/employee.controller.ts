@@ -1,54 +1,52 @@
 import { Request, Response } from 'express';
-import { asyncHandler } from '../middleware/errorHandler';
-import { sendSuccess, sendPaginated } from '../utils/apiResponse';
+import { asyncHandler } from '../utils/async-handler';
+import { sendSuccess } from '../utils/response';
 import * as employeeService from '../services/employee.service';
-import { EmployeeStatus } from '@prisma/client';
 
 /**
- * GET /api/employees
+ * GET /api/employees — List all employees (ADMIN/HR only)
  */
 export const getAll = asyncHandler(async (req: Request, res: Response) => {
-  const { search, departmentId, status, page, limit } = req.query;
-
-  const result = await employeeService.getAll({
-    search: search as string,
-    departmentId: departmentId as string,
-    status: status as EmployeeStatus,
-    page: page ? parseInt(page as string, 10) : 1,
-    limit: limit ? parseInt(limit as string, 10) : 10,
-  });
-
-  sendPaginated(res, result.employees, result.total, result.page, result.limit);
+  const employees = await employeeService.getAllEmployees();
+  sendSuccess(res, 'Employees retrieved.', employees);
 });
 
 /**
- * GET /api/employees/:id
+ * GET /api/employees/:id — Get employee by ID (ADMIN/HR only)
  */
 export const getById = asyncHandler(async (req: Request, res: Response) => {
-  const employee = await employeeService.getById(req.params.id);
-  sendSuccess(res, employee, 'Employee retrieved.');
+  const employee = await employeeService.getEmployeeById(req.params.id as string);
+  sendSuccess(res, 'Employee retrieved.', employee);
 });
 
 /**
- * POST /api/employees
- */
-export const create = asyncHandler(async (req: Request, res: Response) => {
-  const employee = await employeeService.create(req.body);
-  sendSuccess(res, employee, 'Employee created successfully.', 201);
-});
-
-/**
- * PUT /api/employees/:id
+ * PATCH /api/employees/:id — Update employee (ADMIN/HR only)
  */
 export const update = asyncHandler(async (req: Request, res: Response) => {
-  const employee = await employeeService.update(req.params.id, req.body);
-  sendSuccess(res, employee, 'Employee updated successfully.');
+  const employee = await employeeService.updateEmployee(req.params.id as string, req.body);
+  sendSuccess(res, 'Employee updated successfully.', employee);
 });
 
 /**
- * DELETE /api/employees/:id
+ * DELETE /api/employees/:id — Delete employee (ADMIN only)
  */
 export const remove = asyncHandler(async (req: Request, res: Response) => {
-  const result = await employeeService.remove(req.params.id);
-  sendSuccess(res, result, 'Employee deleted successfully.');
+  const result = await employeeService.deleteEmployee(req.params.id as string);
+  sendSuccess(res, 'Employee deleted successfully.', result);
+});
+
+/**
+ * GET /api/employees/me/profile — Get own profile
+ */
+export const getMyProfile = asyncHandler(async (req: Request, res: Response) => {
+  const profile = await employeeService.getMyProfile(req.user!.id);
+  sendSuccess(res, 'Profile retrieved.', profile);
+});
+
+/**
+ * PATCH /api/employees/me/profile — Update own profile (limited fields)
+ */
+export const updateMyProfile = asyncHandler(async (req: Request, res: Response) => {
+  const profile = await employeeService.updateMyProfile(req.user!.id, req.body);
+  sendSuccess(res, 'Profile updated successfully.', profile);
 });

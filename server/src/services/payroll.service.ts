@@ -1,146 +1,145 @@
-import { PayrollStatus, Prisma } from '@prisma/client';
-import { prisma } from '../config/database';
-import { AppError } from '../middleware/errorHandler';
-import { GeneratePayrollInput } from '../validations/payroll.validation';
-
-export interface PayrollFilters {
-  employeeId?: string;
-  month?: number;
-  year?: number;
-  status?: PayrollStatus;
-  page?: number;
-  limit?: number;
-}
+import { Prisma, PayrollStatus } from '@prisma/client';
+import { prisma } from '../config/prisma';
+import { AppError } from '../middleware/error.middleware';
+import { CreatePayrollInput, UpdatePayrollInput } from '../validations/payroll.validation';
 
 /**
- * Get all payroll records with filters and pagination.
+ * Employee views their own payroll records (read-only).
  */
-export const getAll = async (filters: PayrollFilters = {}) => {
-  const { employeeId, month, year, status, page = 1, limit = 10 } = filters;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.PayrollWhereInput = {};
-
-  if (employeeId) where.employeeId = employeeId;
-  if (month) where.month = month;
-  if (year) where.year = year;
-  if (status) where.status = status;
-
-  const [records, total] = await Promise.all([
-    prisma.payroll.findMany({
-      where,
-      include: {
-        employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            employeeCode: true,
-            designation: true,
-            department: { select: { name: true } },
-          },
-        },
-      },
-      skip,
-      take: limit,
-      orderBy: [{ year: 'desc' }, { month: 'desc' }],
-    }),
-    prisma.payroll.count({ where }),
-  ]);
-
-  return { records, total, page, limit };
+export const getMyPayroll = async (userId: string) => {
+  const records = await prisma.payroll.findMany({
+    where: { userId },
+    orderBy: [{ year: 'desc' }, { month: 'desc' }],
+  });
+  return records;
 };
 
 /**
- * Generate payroll for a specific employee (or all active employees if employeeId is omitted).
+ * Get all payroll records (ADMIN/HR).
+ * Supports filters: employeeId, department, month, year, status.
  */
-export const generate = async (data: GeneratePayrollInput) => {
-  const { month, year, bonuses = 0, deductions = 0 } = data;
+export const getAllPayroll = async (
+  filters: {
+    employeeId?: string;
+    department?: string;
+    month?: string;
+    year?: string;
+    status?: string;
+  } = {},
+) => {
+  const where: Prisma.PayrollWhereInput = {};
 
-  // If specific employee, generate for one; otherwise for all active employees
-  if (data.employeeId) {
-    return generateForEmployee(data.employeeId, month, year, bonuses, deductions);
-  }
-
-  // Generate for all active employees
-  const employees = await prisma.employee.findMany({
-    where: { status: 'ACTIVE' },
-  });
-
-  if (employees.length === 0) {
-    throw new AppError('No active employees found.', 404);
-  }
-
-  const results = [];
-  const errors = [];
-
-  for (const emp of employees) {
-    try {
-      const payroll = await generateForEmployee(emp.id, month, year, bonuses, deductions);
-      results.push(payroll);
-    } catch (error) {
-      errors.push({ employeeId: emp.id, name: `${emp.firstName} ${emp.lastName}`, error: (error as Error).message });
+  if (filters.employeeId) {
+    const user = await prisma.user.findUnique({ where: { employeeId: filters.employeeId } });
+    if (user) {
+      where.userId = user.id;
+    } else {
+      return [];
     }
   }
 
-  return { generated: results, errors, total: results.length };
+  if (filters.department) {
+    const usersInDept = await prisma.user.findMany({
+      where: { profile: { department: filters.department } },
+      select: { id: true },
+    });
+    where.userId = { in: usersInDept.map((u) => u.id) };
+  }
+
+  if (filters.month) where.month = parseInt(filters.month, 10);
+  if (filters.year) where.year = parseInt(filters.year, 10);
+  if (filters.status) where.status = filters.status as PayrollStatus;
+
+  const records = await prisma.payroll.findMany({
+    where,
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          employeeId: true,
+          email: true,
+          profile: {
+            select: { department: true, designation: true },
+          },
+        },
+      },
+    },
+    orderBy: [{ year: 'desc' }, { month: 'desc' }],
+  });
+
+  return records;
 };
 
 /**
- * Generate payroll for a single employee.
+ * Get payroll for one employee by their employeeId (ADMIN/HR).
  */
-const generateForEmployee = async (
-  employeeId: string,
-  month: number,
-  year: number,
-  bonuses: number,
-  deductions: number,
-) => {
-  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
-
-  if (!employee) {
+export const getPayrollByEmployeeId = async (employeeId: string) => {
+  const user = await prisma.user.findUnique({ where: { employeeId } });
+  if (!user) {
     throw new AppError('Employee not found.', 404);
+  }
+
+  const records = await prisma.payroll.findMany({
+    where: { userId: user.id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          employeeId: true,
+          email: true,
+          profile: {
+            select: { department: true, designation: true },
+          },
+        },
+      },
+    },
+    orderBy: [{ year: 'desc' }, { month: 'desc' }],
+  });
+
+  return records;
+};
+
+/**
+ * Create a payroll record (ADMIN/HR).
+ * netSalary = basicSalary + allowances - deductions.
+ */
+export const createPayroll = async (data: CreatePayrollInput) => {
+  const user = await prisma.user.findUnique({ where: { id: data.userId } });
+  if (!user) {
+    throw new AppError('User not found.', 404);
   }
 
   // Check if payroll already exists for this month/year
   const existing = await prisma.payroll.findUnique({
     where: {
-      employeeId_month_year: { employeeId, month, year },
+      userId_month_year: { userId: data.userId, month: data.month, year: data.year },
     },
   });
 
   if (existing) {
     throw new AppError(
-      `Payroll for ${employee.firstName} ${employee.lastName} already exists for ${month}/${year}.`,
+      `Payroll already exists for this employee for ${data.month}/${data.year}.`,
       409,
     );
   }
 
-  // Calculate salary components
-  const basicSalary = employee.salary;
-  const hra = basicSalary * 0.4; // 40% of basic
-  const da = basicSalary * 0.2; // 20% of basic
-  const gross = basicSalary + hra + da + bonuses;
-  const tax = gross > 50000 ? gross * 0.1 : gross * 0.05; // 10% if > 50k, else 5%
-  const netSalary = gross - deductions - tax;
+  const netSalary = data.basicSalary + (data.allowances || 0) - (data.deductions || 0);
 
   const payroll = await prisma.payroll.create({
     data: {
-      employeeId,
-      month,
-      year,
-      basicSalary,
-      hra,
-      da,
-      deductions,
-      bonuses,
-      tax: parseFloat(tax.toFixed(2)),
-      netSalary: parseFloat(netSalary.toFixed(2)),
-      status: 'DRAFT',
+      userId: data.userId,
+      basicSalary: data.basicSalary,
+      allowances: data.allowances || 0,
+      deductions: data.deductions || 0,
+      netSalary,
+      month: data.month,
+      year: data.year,
     },
     include: {
-      employee: {
-        select: { firstName: true, lastName: true, employeeCode: true },
+      user: {
+        select: { id: true, name: true, employeeId: true },
       },
     },
   });
@@ -149,40 +148,32 @@ const generateForEmployee = async (
 };
 
 /**
- * Get payroll records for a specific employee.
+ * Update a payroll record (ADMIN/HR).
+ * Recalculates netSalary automatically.
  */
-export const getMyPayroll = async (employeeId: string) => {
-  const records = await prisma.payroll.findMany({
-    where: { employeeId },
-    orderBy: [{ year: 'desc' }, { month: 'desc' }],
-  });
-
-  return records;
-};
-
-/**
- * Mark a payroll record as paid.
- */
-export const markAsPaid = async (payrollId: string) => {
-  const payroll = await prisma.payroll.findUnique({ where: { id: payrollId } });
-
-  if (!payroll) {
+export const updatePayroll = async (id: string, data: UpdatePayrollInput) => {
+  const existing = await prisma.payroll.findUnique({ where: { id } });
+  if (!existing) {
     throw new AppError('Payroll record not found.', 404);
   }
 
-  if (payroll.status === 'PAID') {
-    throw new AppError('This payroll has already been marked as paid.', 400);
-  }
+  const basicSalary = data.basicSalary ?? existing.basicSalary;
+  const allowances = data.allowances ?? existing.allowances;
+  const deductions = data.deductions ?? existing.deductions;
+  const netSalary = basicSalary + allowances - deductions;
 
   const updated = await prisma.payroll.update({
-    where: { id: payrollId },
+    where: { id },
     data: {
-      status: 'PAID',
-      paidAt: new Date(),
+      ...(data.basicSalary !== undefined && { basicSalary: data.basicSalary }),
+      ...(data.allowances !== undefined && { allowances: data.allowances }),
+      ...(data.deductions !== undefined && { deductions: data.deductions }),
+      ...(data.status !== undefined && { status: data.status }),
+      netSalary,
     },
     include: {
-      employee: {
-        select: { firstName: true, lastName: true, employeeCode: true },
+      user: {
+        select: { id: true, name: true, employeeId: true },
       },
     },
   });

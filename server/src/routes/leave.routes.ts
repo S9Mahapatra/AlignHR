@@ -1,27 +1,19 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
-import { validate } from '../middleware/validate';
+import { authenticate } from '../middleware/auth.middleware';
+import { requireRole } from '../middleware/role.middleware';
+import { validate } from '../middleware/validate.middleware';
 import { createLeaveSchema } from '../validations/leave.validation';
 import * as leaveController from '../controllers/leave.controller';
 
 const router = Router();
 
-/** GET /api/leaves — List all leave requests (ADMIN, HR only) */
-router.get('/', authenticate, authorize('ADMIN', 'HR'), leaveController.getAll);
-
-/** GET /api/leaves/my — Get own leave requests */
-router.get('/my', authenticate, leaveController.getMyLeaves);
-
-/** GET /api/leaves/balance — Get own leave balance */
-router.get('/balance', authenticate, leaveController.getLeaveBalance);
-
-/** POST /api/leaves — Submit a leave request */
+// ─── Employee self-routes ────────────────────────────────────────────────────
 router.post('/', authenticate, validate(createLeaveSchema), leaveController.create);
+router.get('/me', authenticate, leaveController.getMyLeaves);
 
-/** PUT /api/leaves/:id/approve — Approve a leave request (ADMIN, HR only) */
-router.put('/:id/approve', authenticate, authorize('ADMIN', 'HR'), leaveController.approve);
-
-/** PUT /api/leaves/:id/reject — Reject a leave request (ADMIN, HR only) */
-router.put('/:id/reject', authenticate, authorize('ADMIN', 'HR'), leaveController.reject);
+// ─── Admin/HR routes ─────────────────────────────────────────────────────────
+router.get('/', authenticate, requireRole('ADMIN', 'HR'), leaveController.getAll);
+router.patch('/:id/approve', authenticate, requireRole('ADMIN', 'HR'), leaveController.approve);
+router.patch('/:id/reject', authenticate, requireRole('ADMIN', 'HR'), leaveController.reject);
 
 export default router;

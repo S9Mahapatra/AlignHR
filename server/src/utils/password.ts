@@ -1,12 +1,11 @@
 import bcrypt from 'bcryptjs';
-
-const SALT_ROUNDS = 12;
+import { env } from '../config/env';
 
 /**
  * Hash a plain-text password using bcrypt.
  */
 export const hashPassword = async (password: string): Promise<string> => {
-  return bcrypt.hash(password, SALT_ROUNDS);
+  return bcrypt.hash(password, env.BCRYPT_SALT_ROUNDS);
 };
 
 /**

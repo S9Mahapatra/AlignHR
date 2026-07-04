@@ -1,22 +1,7 @@
 import { LeaveStatus, LeaveType, Prisma } from '@prisma/client';
-import { prisma } from '../config/database';
-import { AppError } from '../middleware/errorHandler';
+import { prisma } from '../config/prisma';
+import { AppError } from '../middleware/error.middleware';
 import { CreateLeaveInput } from '../validations/leave.validation';
-
-/** Annual leave entitlements per type */
-const LEAVE_ENTITLEMENTS: Record<LeaveType, number> = {
-  CASUAL: 12,
-  SICK: 12,
-  EARNED: 15,
-  UNPAID: 365, // unlimited effectively
-};
-
-export interface LeaveFilters {
-  status?: LeaveStatus;
-  employeeId?: string;
-  page?: number;
-  limit?: number;
-}
 
 /**
  * Calculate the number of days between two dates (inclusive).
@@ -27,53 +12,10 @@ const calculateDays = (start: Date, end: Date): number => {
 };
 
 /**
- * Get all leave records with filters and pagination.
+ * Employee applies for leave.
+ * Calculates totalDays, defaults to PENDING status.
  */
-export const getAll = async (filters: LeaveFilters = {}) => {
-  const { status, employeeId, page = 1, limit = 10 } = filters;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.LeaveWhereInput = {};
-
-  if (status) {
-    where.status = status;
-  }
-
-  if (employeeId) {
-    where.employeeId = employeeId;
-  }
-
-  const [leaves, total] = await Promise.all([
-    prisma.leave.findMany({
-      where,
-      include: {
-        employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            employeeCode: true,
-            department: { select: { name: true } },
-          },
-        },
-        approvedBy: {
-          select: { firstName: true, lastName: true },
-        },
-      },
-      skip,
-      take: limit,
-      orderBy: { createdAt: 'desc' },
-    }),
-    prisma.leave.count({ where }),
-  ]);
-
-  return { leaves, total, page, limit };
-};
-
-/**
- * Create a new leave request.
- */
-export const create = async (employeeId: string, data: CreateLeaveInput) => {
+export const createLeave = async (userId: string, data: CreateLeaveInput) => {
   const startDate = new Date(data.startDate);
   const endDate = new Date(data.endDate);
 
@@ -83,26 +25,12 @@ export const create = async (employeeId: string, data: CreateLeaveInput) => {
 
   const totalDays = calculateDays(startDate, endDate);
 
-  // Check if employee has enough leave balance for non-UNPAID leaves
-  if (data.leaveType !== 'UNPAID') {
-    const balance = await getLeaveBalance(employeeId);
-    const leaveTypeBalance = balance.find((b) => b.type === data.leaveType);
-    if (leaveTypeBalance && leaveTypeBalance.remaining < totalDays) {
-      throw new AppError(
-        `Insufficient ${data.leaveType} leave balance. You have ${leaveTypeBalance.remaining} day(s) remaining.`,
-        400,
-      );
-    }
-  }
-
   // Check for overlapping leave requests
-  const overlapping = await prisma.leave.findFirst({
+  const overlapping = await prisma.leaveRequest.findFirst({
     where: {
-      employeeId,
+      userId,
       status: { not: 'REJECTED' },
-      OR: [
-        { startDate: { lte: endDate }, endDate: { gte: startDate } },
-      ],
+      OR: [{ startDate: { lte: endDate }, endDate: { gte: startDate } }],
     },
   });
 
@@ -110,19 +38,18 @@ export const create = async (employeeId: string, data: CreateLeaveInput) => {
     throw new AppError('You already have a leave request that overlaps with these dates.', 400);
   }
 
-  const leave = await prisma.leave.create({
+  const leave = await prisma.leaveRequest.create({
     data: {
-      employeeId,
+      userId,
       leaveType: data.leaveType as LeaveType,
       startDate,
       endDate,
       totalDays,
-      reason: data.reason,
+      remarks: data.remarks,
+      status: 'PENDING',
     },
     include: {
-      employee: {
-        select: { firstName: true, lastName: true },
-      },
+      user: { select: { id: true, name: true, employeeId: true } },
     },
   });
 
@@ -130,54 +57,73 @@ export const create = async (employeeId: string, data: CreateLeaveInput) => {
 };
 
 /**
- * Approve or reject a leave request.
+ * Get logged-in user's own leave requests.
  */
-export const updateStatus = async (
-  leaveId: string,
-  status: 'APPROVED' | 'REJECTED',
-  approvedById: string,
-  rejectionNote?: string,
-) => {
-  const leave = await prisma.leave.findUnique({ where: { id: leaveId } });
-
-  if (!leave) {
-    throw new AppError('Leave request not found.', 404);
-  }
-
-  if (leave.status !== 'PENDING') {
-    throw new AppError(`This leave request has already been ${leave.status.toLowerCase()}.`, 400);
-  }
-
-  const updated = await prisma.leave.update({
-    where: { id: leaveId },
-    data: {
-      status: status as LeaveStatus,
-      approvedById,
-      approvedAt: new Date(),
-      rejectionNote: status === 'REJECTED' ? rejectionNote : null,
-    },
-    include: {
-      employee: {
-        select: { firstName: true, lastName: true },
-      },
-      approvedBy: {
-        select: { firstName: true, lastName: true },
-      },
-    },
+export const getMyLeaves = async (userId: string) => {
+  const leaves = await prisma.leaveRequest.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
   });
-
-  return updated;
+  return leaves;
 };
 
 /**
- * Get all leaves for a specific employee.
+ * Get all leave requests (ADMIN/HR).
+ * Supports filters: status, leaveType, department, employeeId, startDate, endDate.
  */
-export const getMyLeaves = async (employeeId: string) => {
-  const leaves = await prisma.leave.findMany({
-    where: { employeeId },
+export const getAllLeaves = async (
+  filters: {
+    status?: string;
+    leaveType?: string;
+    department?: string;
+    employeeId?: string;
+    startDate?: string;
+    endDate?: string;
+  } = {},
+) => {
+  const where: Prisma.LeaveRequestWhereInput = {};
+
+  if (filters.status) {
+    where.status = filters.status as LeaveStatus;
+  }
+  if (filters.leaveType) {
+    where.leaveType = filters.leaveType as LeaveType;
+  }
+  if (filters.employeeId) {
+    const user = await prisma.user.findUnique({ where: { employeeId: filters.employeeId } });
+    if (user) {
+      where.userId = user.id;
+    } else {
+      return [];
+    }
+  }
+  if (filters.department) {
+    const usersInDept = await prisma.user.findMany({
+      where: { profile: { department: filters.department } },
+      select: { id: true },
+    });
+    where.userId = { in: usersInDept.map((u) => u.id) };
+  }
+  if (filters.startDate) {
+    where.startDate = { gte: new Date(filters.startDate) };
+  }
+  if (filters.endDate) {
+    where.endDate = { lte: new Date(filters.endDate) };
+  }
+
+  const leaves = await prisma.leaveRequest.findMany({
+    where,
     include: {
-      approvedBy: {
-        select: { firstName: true, lastName: true },
+      user: {
+        select: {
+          id: true,
+          name: true,
+          employeeId: true,
+          email: true,
+          profile: {
+            select: { department: true, designation: true },
+          },
+        },
       },
     },
     orderBy: { createdAt: 'desc' },
@@ -187,35 +133,65 @@ export const getMyLeaves = async (employeeId: string) => {
 };
 
 /**
- * Calculate the remaining leave balance for an employee for the current year.
+ * Approve a leave request (ADMIN/HR).
  */
-export const getLeaveBalance = async (employeeId: string) => {
-  const currentYear = new Date().getFullYear();
-  const startOfYear = new Date(Date.UTC(currentYear, 0, 1));
-  const endOfYear = new Date(Date.UTC(currentYear, 11, 31));
+export const approveLeave = async (
+  leaveId: string,
+  reviewerId: string,
+  adminComment?: string,
+) => {
+  const leave = await prisma.leaveRequest.findUnique({ where: { id: leaveId } });
+  if (!leave) {
+    throw new AppError('Leave request not found.', 404);
+  }
+  if (leave.status !== 'PENDING') {
+    throw new AppError(`This leave request has already been ${leave.status.toLowerCase()}.`, 400);
+  }
 
-  // Count approved leaves for each type in the current year
-  const usedLeaves = await prisma.leave.groupBy({
-    by: ['leaveType'],
-    where: {
-      employeeId,
-      status: { in: ['APPROVED', 'PENDING'] },
-      startDate: { gte: startOfYear },
-      endDate: { lte: endOfYear },
+  const updated = await prisma.leaveRequest.update({
+    where: { id: leaveId },
+    data: {
+      status: 'APPROVED',
+      adminComment,
+      reviewedBy: reviewerId,
+      reviewedAt: new Date(),
     },
-    _sum: { totalDays: true },
+    include: {
+      user: { select: { id: true, name: true, employeeId: true } },
+    },
   });
 
-  const usedMap = new Map(
-    usedLeaves.map((l) => [l.leaveType, l._sum.totalDays || 0]),
-  );
+  return updated;
+};
 
-  const balance = Object.entries(LEAVE_ENTITLEMENTS).map(([type, entitled]) => ({
-    type: type as LeaveType,
-    entitled,
-    used: usedMap.get(type as LeaveType) || 0,
-    remaining: entitled - (usedMap.get(type as LeaveType) || 0),
-  }));
+/**
+ * Reject a leave request (ADMIN/HR).
+ */
+export const rejectLeave = async (
+  leaveId: string,
+  reviewerId: string,
+  adminComment?: string,
+) => {
+  const leave = await prisma.leaveRequest.findUnique({ where: { id: leaveId } });
+  if (!leave) {
+    throw new AppError('Leave request not found.', 404);
+  }
+  if (leave.status !== 'PENDING') {
+    throw new AppError(`This leave request has already been ${leave.status.toLowerCase()}.`, 400);
+  }
 
-  return balance;
+  const updated = await prisma.leaveRequest.update({
+    where: { id: leaveId },
+    data: {
+      status: 'REJECTED',
+      adminComment,
+      reviewedBy: reviewerId,
+      reviewedAt: new Date(),
+    },
+    include: {
+      user: { select: { id: true, name: true, employeeId: true } },
+    },
+  });
+
+  return updated;
 };

@@ -1,22 +1,19 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate } from '../middleware/auth.middleware';
+import { requireRole } from '../middleware/role.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { updateAttendanceSchema } from '../validations/attendance.validation';
 import * as attendanceController from '../controllers/attendance.controller';
 
 const router = Router();
 
-/** GET /api/attendance — List all attendance records (ADMIN, HR only) */
-router.get('/', authenticate, authorize('ADMIN', 'HR'), attendanceController.getAll);
-
-/** GET /api/attendance/my — Get own attendance records */
-router.get('/my', authenticate, attendanceController.getMyAttendance);
-
-/** GET /api/attendance/today — Get today's attendance status */
-router.get('/today', authenticate, attendanceController.getTodayStatus);
-
-/** POST /api/attendance/check-in — Check in for today */
+// ─── Employee self-routes ────────────────────────────────────────────────────
 router.post('/check-in', authenticate, attendanceController.checkIn);
-
-/** POST /api/attendance/check-out — Check out for today */
 router.post('/check-out', authenticate, attendanceController.checkOut);
+router.get('/me', authenticate, attendanceController.getMyAttendance);
+
+// ─── Admin/HR routes ─────────────────────────────────────────────────────────
+router.get('/', authenticate, requireRole('ADMIN', 'HR'), attendanceController.getAll);
+router.patch('/:id', authenticate, requireRole('ADMIN', 'HR'), validate(updateAttendanceSchema), attendanceController.updateAttendance);
 
 export default router;

@@ -1,90 +1,60 @@
 import { Request, Response } from 'express';
-import { LeaveStatus } from '@prisma/client';
-import { asyncHandler, AppError } from '../middleware/errorHandler';
-import { sendSuccess, sendPaginated } from '../utils/apiResponse';
+import { asyncHandler } from '../utils/async-handler';
+import { sendSuccess } from '../utils/response';
 import * as leaveService from '../services/leave.service';
 
 /**
- * GET /api/leaves
- */
-export const getAll = asyncHandler(async (req: Request, res: Response) => {
-  const { status, employeeId, page, limit } = req.query;
-
-  const result = await leaveService.getAll({
-    status: status as LeaveStatus,
-    employeeId: employeeId as string,
-    page: page ? parseInt(page as string, 10) : 1,
-    limit: limit ? parseInt(limit as string, 10) : 10,
-  });
-
-  sendPaginated(res, result.leaves, result.total, result.page, result.limit);
-});
-
-/**
- * GET /api/leaves/my
- */
-export const getMyLeaves = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.employeeId) {
-    throw new AppError('Employee profile not found for this user.', 404);
-  }
-
-  const leaves = await leaveService.getMyLeaves(req.user.employeeId);
-  sendSuccess(res, leaves, 'Leave requests retrieved.');
-});
-
-/**
- * GET /api/leaves/balance
- */
-export const getLeaveBalance = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.employeeId) {
-    throw new AppError('Employee profile not found for this user.', 404);
-  }
-
-  const balance = await leaveService.getLeaveBalance(req.user.employeeId);
-  sendSuccess(res, balance, 'Leave balance retrieved.');
-});
-
-/**
- * POST /api/leaves
+ * POST /api/leaves — Employee applies for leave
  */
 export const create = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.employeeId) {
-    throw new AppError('Employee profile not found for this user.', 404);
-  }
-
-  const leave = await leaveService.create(req.user.employeeId, req.body);
-  sendSuccess(res, leave, 'Leave request submitted.', 201);
+  const leave = await leaveService.createLeave(req.user!.id, req.body);
+  sendSuccess(res, 'Leave request submitted.', leave, 201);
 });
 
 /**
- * PUT /api/leaves/:id/approve
+ * GET /api/leaves/me — Get own leave requests
+ */
+export const getMyLeaves = asyncHandler(async (req: Request, res: Response) => {
+  const leaves = await leaveService.getMyLeaves(req.user!.id);
+  sendSuccess(res, 'Leave requests retrieved.', leaves);
+});
+
+/**
+ * GET /api/leaves — Get all leave requests (ADMIN/HR)
+ */
+export const getAll = asyncHandler(async (req: Request, res: Response) => {
+  const { status, leaveType, department, employeeId, startDate, endDate } = req.query;
+  const leaves = await leaveService.getAllLeaves({
+    status: status as string,
+    leaveType: leaveType as string,
+    department: department as string,
+    employeeId: employeeId as string,
+    startDate: startDate as string,
+    endDate: endDate as string,
+  });
+  sendSuccess(res, 'All leave requests retrieved.', leaves);
+});
+
+/**
+ * PATCH /api/leaves/:id/approve — Approve leave request (ADMIN/HR)
  */
 export const approve = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.employeeId) {
-    throw new AppError('Employee profile not found for this user.', 404);
-  }
-
-  const leave = await leaveService.updateStatus(
-    req.params.id,
-    'APPROVED',
-    req.user.employeeId,
+  const leave = await leaveService.approveLeave(
+    req.params.id as string,
+    req.user!.id,
+    req.body.adminComment,
   );
-  sendSuccess(res, leave, 'Leave request approved.');
+  sendSuccess(res, 'Leave request approved.', leave);
 });
 
 /**
- * PUT /api/leaves/:id/reject
+ * PATCH /api/leaves/:id/reject — Reject leave request (ADMIN/HR)
  */
 export const reject = asyncHandler(async (req: Request, res: Response) => {
-  if (!req.user?.employeeId) {
-    throw new AppError('Employee profile not found for this user.', 404);
-  }
-
-  const leave = await leaveService.updateStatus(
-    req.params.id,
-    'REJECTED',
-    req.user.employeeId,
-    req.body.rejectionNote,
+  const leave = await leaveService.rejectLeave(
+    req.params.id as string,
+    req.user!.id,
+    req.body.adminComment,
   );
-  sendSuccess(res, leave, 'Leave request rejected.');
+  sendSuccess(res, 'Leave request rejected.', leave);
 });

@@ -1,41 +1,20 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
-import { validate } from '../middleware/validate';
-import { createEmployeeSchema, updateEmployeeSchema } from '../validations/employee.validation';
+import { authenticate } from '../middleware/auth.middleware';
+import { requireRole } from '../middleware/role.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { updateEmployeeAdminSchema, updateEmployeeSelfSchema } from '../validations/employee.validation';
 import * as employeeController from '../controllers/employee.controller';
 
 const router = Router();
 
-/** GET /api/employees — List all employees (any authenticated user) */
-router.get('/', authenticate, employeeController.getAll);
+// ─── Employee self-routes (must be before /:id to avoid param conflict) ──────
+router.get('/me/profile', authenticate, employeeController.getMyProfile);
+router.patch('/me/profile', authenticate, validate(updateEmployeeSelfSchema), employeeController.updateMyProfile);
 
-/** GET /api/employees/:id — Get employee by ID (any authenticated user) */
-router.get('/:id', authenticate, employeeController.getById);
-
-/** POST /api/employees — Create new employee (ADMIN, HR only) */
-router.post(
-  '/',
-  authenticate,
-  authorize('ADMIN', 'HR'),
-  validate(createEmployeeSchema),
-  employeeController.create,
-);
-
-/** PUT /api/employees/:id — Update employee (ADMIN, HR only) */
-router.put(
-  '/:id',
-  authenticate,
-  authorize('ADMIN', 'HR'),
-  validate(updateEmployeeSchema),
-  employeeController.update,
-);
-
-/** DELETE /api/employees/:id — Delete employee (ADMIN only) */
-router.delete(
-  '/:id',
-  authenticate,
-  authorize('ADMIN'),
-  employeeController.remove,
-);
+// ─── Admin/HR routes ─────────────────────────────────────────────────────────
+router.get('/', authenticate, requireRole('ADMIN', 'HR'), employeeController.getAll);
+router.get('/:id', authenticate, requireRole('ADMIN', 'HR'), employeeController.getById);
+router.patch('/:id', authenticate, requireRole('ADMIN', 'HR'), validate(updateEmployeeAdminSchema), employeeController.update);
+router.delete('/:id', authenticate, requireRole('ADMIN'), employeeController.remove);
 
 export default router;

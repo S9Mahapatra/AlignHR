@@ -1,27 +1,19 @@
 import { Router } from 'express';
-import { authenticate, authorize } from '../middleware/auth';
-import { validate } from '../middleware/validate';
-import { generatePayrollSchema } from '../validations/payroll.validation';
+import { authenticate } from '../middleware/auth.middleware';
+import { requireRole } from '../middleware/role.middleware';
+import { validate } from '../middleware/validate.middleware';
+import { createPayrollSchema, updatePayrollSchema } from '../validations/payroll.validation';
 import * as payrollController from '../controllers/payroll.controller';
 
 const router = Router();
 
-/** GET /api/payroll — List all payroll records (ADMIN, HR only) */
-router.get('/', authenticate, authorize('ADMIN', 'HR'), payrollController.getAll);
+// ─── Employee self-route ─────────────────────────────────────────────────────
+router.get('/me', authenticate, payrollController.getMyPayroll);
 
-/** GET /api/payroll/my — Get own payroll records */
-router.get('/my', authenticate, payrollController.getMyPayroll);
-
-/** POST /api/payroll/generate — Generate payroll (ADMIN only) */
-router.post(
-  '/generate',
-  authenticate,
-  authorize('ADMIN'),
-  validate(generatePayrollSchema),
-  payrollController.generate,
-);
-
-/** PUT /api/payroll/:id/pay — Mark payroll as paid (ADMIN only) */
-router.put('/:id/pay', authenticate, authorize('ADMIN'), payrollController.markAsPaid);
+// ─── Admin/HR routes ─────────────────────────────────────────────────────────
+router.get('/', authenticate, requireRole('ADMIN', 'HR'), payrollController.getAll);
+router.get('/:employeeId', authenticate, requireRole('ADMIN', 'HR'), payrollController.getByEmployeeId);
+router.post('/', authenticate, requireRole('ADMIN', 'HR'), validate(createPayrollSchema), payrollController.create);
+router.patch('/:id', authenticate, requireRole('ADMIN', 'HR'), validate(updatePayrollSchema), payrollController.update);
 
 export default router;
