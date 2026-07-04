@@ -68,7 +68,8 @@ export const authOptions: NextAuthOptions = {
             employeeId: user.employeeId,
             accessToken: token,
           };
-        } catch {
+        } catch (error) {
+          console.error("Login error in NextAuth:", error);
           return null;
         }
       },

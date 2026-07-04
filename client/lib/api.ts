@@ -4,7 +4,7 @@
 // Token is passed as a parameter to support both client and server contexts.
 // ============================================================================
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 /**
  * Core fetch wrapper that handles headers, auth, JSON parsing, and errors.
@@ -23,7 +23,11 @@ async function fetchApi<T = unknown>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  // Next.js server-side fetch defaults to IPv6 ::1 for 'localhost', but our Express server is bound to IPv4 0.0.0.0.
+  // We replace localhost with 127.0.0.1 on the server to prevent ECONNREFUSED.
+  const baseUrl = typeof window === 'undefined' ? API_BASE.replace('localhost', '127.0.0.1') : API_BASE;
+
+  const res = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers,
   });
